@@ -26,6 +26,8 @@ namespace PrettyLogcat.ViewModels
         private readonly ObservableCollection<AndroidDevice> _devices = new();
         private readonly ObservableCollection<LogEntry> _allLogs = new();
         private readonly ObservableCollection<LogEntry> _filteredLogs = new();
+        private readonly ObservableCollection<LogEntry> _displayedLogs = new();
+        private readonly ObservableCollection<LogEntry> _pinnedLogs = new();
 
         private AndroidDevice? _selectedDevice;
         private bool _isConnected;
@@ -35,6 +37,8 @@ namespace PrettyLogcat.ViewModels
         private bool _showWelcomeMessage = true;
         private bool _autoScroll = true;
         private bool _wordWrap = false;
+        private string _secondarySearchText = string.Empty;
+        private LogEntry? _selectedLogEntry;
         private CancellationTokenSource? _logcatCancellationTokenSource;
         private IDisposable? _logEntriesSubscription;
         
@@ -46,6 +50,8 @@ namespace PrettyLogcat.ViewModels
 
         public ObservableCollection<AndroidDevice> Devices => _devices;
         public ObservableCollection<LogEntry> FilteredLogs => _filteredLogs;
+        public ObservableCollection<LogEntry> DisplayedLogs => _displayedLogs;
+        public ObservableCollection<LogEntry> PinnedLogs => _pinnedLogs;
 
         public AndroidDevice? SelectedDevice
         {
@@ -156,6 +162,33 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
+        public string SecondarySearchText
+        {
+            get => _secondarySearchText;
+            set
+            {
+                if (_secondarySearchText != value)
+                {
+                    _secondarySearchText = value;
+                    OnPropertyChanged(nameof(SecondarySearchText));
+                    ApplySecondarySearch();
+                }
+            }
+        }
+
+        public LogEntry? SelectedLogEntry
+        {
+            get => _selectedLogEntry;
+            set
+            {
+                if (_selectedLogEntry != value)
+                {
+                    _selectedLogEntry = value;
+                    OnPropertyChanged(nameof(SelectedLogEntry));
+                }
+            }
+        }
+
         public string ConnectButtonText => IsConnected ? "Disconnect" : "Connect";
         public PackIconKind ConnectIconKind => IsConnected ? PackIconKind.LinkOff : PackIconKind.Link;
         public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
@@ -232,6 +265,10 @@ namespace PrettyLogcat.ViewModels
         public ICommand ClearLogsCommand { get; }
         public ICommand SaveLogsCommand { get; }
         public ICommand OpenFileCommand { get; }
+        public ICommand CopyLogCommand { get; }
+        public ICommand PinLogCommand { get; }
+        public ICommand JumpToLogCommand { get; }
+        public ICommand ClearSecondarySearchCommand { get; }
 
         public MainViewModel(
             ILogger<MainViewModel> logger,
@@ -254,6 +291,10 @@ namespace PrettyLogcat.ViewModels
             ClearLogsCommand = new RelayCommand(ExecuteClearLogsCommand, () => _allLogs.Count > 0);
             SaveLogsCommand = new RelayCommand(async () => await ExecuteSaveLogsCommand(), () => _allLogs.Count > 0);
             OpenFileCommand = new RelayCommand(async () => await ExecuteOpenFileCommand());
+            CopyLogCommand = new RelayCommand<LogEntry>(ExecuteCopyLogCommand);
+            PinLogCommand = new RelayCommand<LogEntry>(ExecutePinLogCommand);
+            JumpToLogCommand = new RelayCommand<LogEntry>(ExecuteJumpToLogCommand);
+            ClearSecondarySearchCommand = new RelayCommand(ExecuteClearSecondarySearchCommand);
 
             // Subscribe to events
             _deviceService.DevicesChanged += OnDevicesChanged;
@@ -633,12 +674,51 @@ namespace PrettyLogcat.ViewModels
                 {
                     _filteredLogs.Clear();
                     var filtered = _filterService.FilterLogEntries(_allLogs);
+                    
+                    // 为日志条目设置原始索引
+                    int index = 0;
                     foreach (var entry in filtered)
                     {
+                        entry.OriginalIndex = index++;
                         _filteredLogs.Add(entry);
                     }
 
                     OnPropertyChanged(nameof(FilteredLogCount));
+                    ApplySecondarySearch();
+                });
+            }
+        }
+
+        private void ApplySecondarySearch()
+        {
+            var app = System.Windows.Application.Current;
+            if (app != null)
+            {
+                app.Dispatcher.Invoke(() =>
+                {
+                    _displayedLogs.Clear();
+                    
+                    if (string.IsNullOrWhiteSpace(_secondarySearchText))
+                    {
+                        // 没有二次搜索条件，显示所有过滤后的日志
+                        foreach (var entry in _filteredLogs)
+                        {
+                            _displayedLogs.Add(entry);
+                        }
+                    }
+                    else
+                    {
+                        // 应用二次搜索
+                        var searchText = _secondarySearchText.ToLowerInvariant();
+                        foreach (var entry in _filteredLogs)
+                        {
+                            if (entry.Message.ToLowerInvariant().Contains(searchText) ||
+                                entry.Tag.ToLowerInvariant().Contains(searchText))
+                            {
+                                _displayedLogs.Add(entry);
+                            }
+                        }
+                    }
                 });
             }
         }
@@ -704,6 +784,79 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
+        private void ExecuteCopyLogCommand(LogEntry? logEntry)
+        {
+            if (logEntry != null)
+            {
+                try
+                {
+                    var logText = $"{logEntry.TimeStamp:MM-dd HH:mm:ss.fff} {logEntry.Pid,5} {logEntry.Tid,5} {logEntry.Level} {logEntry.Tag}: {logEntry.Message}";
+                    System.Windows.Clipboard.SetText(logText);
+                    StatusMessage = "Log entry copied to clipboard";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to copy log entry to clipboard");
+                    StatusMessage = "Failed to copy log entry";
+                }
+            }
+        }
+
+        private void ExecutePinLogCommand(LogEntry? logEntry)
+        {
+            if (logEntry != null)
+            {
+                try
+                {
+                    if (!logEntry.IsPinned)
+                    {
+                        logEntry.IsPinned = true;
+                        _pinnedLogs.Add(logEntry);
+                        StatusMessage = "Log entry pinned";
+                    }
+                    else
+                    {
+                        logEntry.IsPinned = false;
+                        _pinnedLogs.Remove(logEntry);
+                        StatusMessage = "Log entry unpinned";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to pin/unpin log entry");
+                    StatusMessage = "Failed to pin/unpin log entry";
+                }
+            }
+        }
+
+        private void ExecuteJumpToLogCommand(LogEntry? logEntry)
+        {
+            if (logEntry != null)
+            {
+                try
+                {
+                    // 清空二次搜索
+                    SecondarySearchText = string.Empty;
+                    
+                    // 在UI中选中该日志条目
+                    SelectedLogEntry = logEntry;
+                    
+                    StatusMessage = $"Jumped to log entry at {logEntry.TimeStamp:HH:mm:ss.fff}";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to jump to log entry");
+                    StatusMessage = "Failed to jump to log entry";
+                }
+            }
+        }
+
+        private void ExecuteClearSecondarySearchCommand()
+        {
+            SecondarySearchText = string.Empty;
+            StatusMessage = "Secondary search cleared";
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
@@ -762,6 +915,46 @@ namespace PrettyLogcat.ViewModels
             else
             {
                 _execute?.Invoke();
+            }
+        }
+    }
+
+    // Generic RelayCommand implementation
+    public class RelayCommand<T> : ICommand
+    {
+        private readonly Action<T?> _execute;
+        private readonly Func<T?, bool>? _canExecute;
+
+        public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+        {
+            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _canExecute = canExecute;
+        }
+
+        public event EventHandler? CanExecuteChanged
+        {
+            add { CommandManager.RequerySuggested += value; }
+            remove { CommandManager.RequerySuggested -= value; }
+        }
+
+        public bool CanExecute(object? parameter)
+        {
+            if (parameter is T typedParameter)
+            {
+                return _canExecute?.Invoke(typedParameter) ?? true;
+            }
+            return _canExecute?.Invoke(default(T)) ?? true;
+        }
+
+        public void Execute(object? parameter)
+        {
+            if (parameter is T typedParameter)
+            {
+                _execute(typedParameter);
+            }
+            else
+            {
+                _execute(default(T));
             }
         }
     }

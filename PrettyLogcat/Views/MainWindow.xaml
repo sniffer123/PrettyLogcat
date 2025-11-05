@@ -10,6 +10,8 @@
 
     <Window.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+        <converters:BooleanToTextWrappingConverter x:Key="BooleanToTextWrappingConverter"/>
+        <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
@@ -193,6 +195,8 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -214,9 +218,64 @@
                         </DockPanel>
                     </Border>
 
+                    <!-- Secondary Search -->
+                    <Border Grid.Row="1" Background="#FAFAFA" Padding="8" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                        <DockPanel>
+                            <TextBlock Text="Secondary Search:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="Medium"/>
+                            <Button DockPanel.Dock="Right" 
+                                    Content="✕" 
+                                    Command="{Binding ClearSecondarySearchCommand}"
+                                    ToolTip="Clear Search"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Margin="4,0,0,0"/>
+                            <TextBox Text="{Binding SecondarySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     VerticalAlignment="Center"
+                                     Padding="8,4"
+                                     Background="White"
+                                     BorderBrush="#CCCCCC"
+                                     BorderThickness="1"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Pinned Logs -->
+                    <Border Grid.Row="2" Background="#E8F5E8" Padding="4" 
+                            Visibility="{Binding PinnedLogs.Count, Converter={StaticResource CountToVisibilityConverter}}"
+                            BorderThickness="0,0,0,1" BorderBrush="#C8E6C9">
+                        <Expander Header="📌 Pinned Logs" IsExpanded="True">
+                            <ListBox ItemsSource="{Binding PinnedLogs}" 
+                                     MaxHeight="120"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="2">
+                                            <TextBlock Text="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" 
+                                                       FontFamily="Consolas" FontSize="10" Width="80" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{Binding Level}" 
+                                                       Foreground="{Binding LevelBrush}" FontWeight="Bold" 
+                                                       FontSize="10" Width="30" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{Binding Tag}" 
+                                                       FontSize="10" Width="100" Margin="0,0,4,0"/>
+                                            <TextBlock Text="{Binding Message}" 
+                                                       FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <EventSetter Event="MouseDoubleClick" Handler="PinnedLogItem_MouseDoubleClick"/>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </Expander>
+                    </Border>
+
                     <!-- Log Content -->
-                    <DataGrid Grid.Row="1" 
-                              ItemsSource="{Binding FilteredLogs}"
+                    <DataGrid Grid.Row="3" 
+                              x:Name="LogDataGrid"
+                              ItemsSource="{Binding DisplayedLogs}"
+                              SelectedItem="{Binding SelectedLogEntry}"
                               AutoGenerateColumns="False"
                               IsReadOnly="True"
                               GridLinesVisibility="Horizontal"
@@ -228,6 +287,25 @@
                               ScrollViewer.CanContentScroll="True"
                               FontFamily="Consolas, Courier New, monospace"
                               FontSize="12">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy" Command="{Binding CopyLogCommand}" CommandParameter="{Binding SelectedLogEntry}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="📋"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Pin/Unpin" Command="{Binding PinLogCommand}" CommandParameter="{Binding SelectedLogEntry}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="📌"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Jump to Log" Command="{Binding JumpToLogCommand}" CommandParameter="{Binding SelectedLogEntry}">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="🔍"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Time" Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="100"/>
                             <DataGridTemplateColumn Header="Level" Width="60">
@@ -242,12 +320,20 @@
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60"/>
                             <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="120"/>
-                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                            <DataGridTemplateColumn Header="Message" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Message}" 
+                                                   TextWrapping="{Binding DataContext.WordWrap, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToTextWrappingConverter}}"
+                                                   Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
 
                     <!-- Welcome/Status Overlay -->
-                    <Border Grid.Row="1" 
+                    <Border Grid.Row="3" 
                             Background="White"
                             Visibility="{Binding ShowWelcomeMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">

@@ -23,6 +23,10 @@ namespace PrettyLogcat.Services
             @"^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]*?):\s*(.*?)$",
             RegexOptions.Compiled | RegexOptions.Multiline);
 
+        // 用于处理多行日志的缓存
+        private LogEntry? _pendingLogEntry;
+        private readonly object _logProcessingLock = new();
+
         public IObservable<LogEntry> LogEntries => _logEntriesSubject.AsObservable();
 
         public LogcatService(ILogger<LogcatService> logger, IAdbService adbService)
@@ -37,10 +41,8 @@ namespace PrettyLogcat.Services
 
             _logcatSubscription = _adbService.StartLogcatStream(deviceId, cancellationToken)
                 .Where(line => !string.IsNullOrWhiteSpace(line))
-                .Select(ParseLogLine)
-                .Where(entry => entry != null)
                 .Subscribe(
-                    entry => _logEntriesSubject.OnNext(entry!),
+                    line => ProcessLogLine(line),
                     error =>
                     {
                         _logger.LogError(error, "Error in logcat stream");
@@ -48,6 +50,15 @@ namespace PrettyLogcat.Services
                     },
                     () =>
                     {
+                        // 处理最后一个待处理的日志条目
+                        lock (_logProcessingLock)
+                        {
+                            if (_pendingLogEntry != null)
+                            {
+                                _logEntriesSubject.OnNext(_pendingLogEntry);
+                                _pendingLogEntry = null;
+                            }
+                        }
                         _logger.LogInformation("Logcat stream completed");
                         _logEntriesSubject.OnCompleted();
                     });
@@ -59,7 +70,66 @@ namespace PrettyLogcat.Services
         {
             _logcatSubscription?.Dispose();
             _logcatSubscription = null;
+            
+            // 清理待处理的日志条目
+            lock (_logProcessingLock)
+            {
+                if (_pendingLogEntry != null)
+                {
+                    _logEntriesSubject.OnNext(_pendingLogEntry);
+                    _pendingLogEntry = null;
+                }
+            }
+            
             _logger.LogInformation("Stopped logcat service");
+        }
+
+        private void ProcessLogLine(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            lock (_logProcessingLock)
+            {
+                var match = LogcatRegex.Match(line);
+                
+                if (match.Success)
+                {
+                    // 这是一个新的日志条目
+                    // 如果有待处理的日志条目，先发送它
+                    if (_pendingLogEntry != null)
+                    {
+                        _logEntriesSubject.OnNext(_pendingLogEntry);
+                    }
+                    
+                    // 创建新的日志条目
+                    _pendingLogEntry = ParseLogLine(line);
+                }
+                else
+                {
+                    // 这是一个续行，添加到当前待处理的日志条目中
+                    if (_pendingLogEntry != null)
+                    {
+                        // 将续行内容添加到消息中，保持换行格式
+                        _pendingLogEntry.Message += Environment.NewLine + line.Trim();
+                        _pendingLogEntry.RawLine += Environment.NewLine + line;
+                    }
+                    else
+                    {
+                        // 如果没有待处理的日志条目，创建一个未知格式的条目
+                        _pendingLogEntry = new LogEntry
+                        {
+                            TimeStamp = DateTime.Now,
+                            Level = Models.LogLevel.Info,
+                            Pid = 0,
+                            Tid = 0,
+                            Tag = "Unknown",
+                            Message = line.Trim(),
+                            RawLine = line
+                        };
+                    }
+                }
+            }
         }
 
         public void ClearLogs()
@@ -162,13 +232,37 @@ namespace PrettyLogcat.Services
             try
             {
                 var lines = File.ReadAllLines(filePath);
+                LogEntry? currentEntry = null;
+                
                 foreach (var line in lines)
                 {
-                    var entry = ParseLogLine(line);
-                    if (entry != null)
+                    var match = LogcatRegex.Match(line);
+                    
+                    if (match.Success)
                     {
-                        entries.Add(entry);
+                        // 这是一个新的日志条目
+                        if (currentEntry != null)
+                        {
+                            entries.Add(currentEntry);
+                        }
+                        
+                        currentEntry = ParseLogLine(line);
                     }
+                    else
+                    {
+                        // 这是一个续行
+                        if (currentEntry != null && !string.IsNullOrWhiteSpace(line))
+                        {
+                            currentEntry.Message += Environment.NewLine + line.Trim();
+                            currentEntry.RawLine += Environment.NewLine + line;
+                        }
+                    }
+                }
+                
+                // 添加最后一个条目
+                if (currentEntry != null)
+                {
+                    entries.Add(currentEntry);
                 }
 
                 _logger.LogInformation("Parsed {Count} log entries from file {FilePath}", entries.Count, filePath);

@@ -13,6 +13,8 @@ namespace PrettyLogcat.Models
         private string _tag = string.Empty;
         private string _message = string.Empty;
         private string _rawLine = string.Empty;
+        private bool _isPinned = false;
+        private int _originalIndex = -1;
 
         public DateTime TimeStamp
         {
@@ -82,6 +84,26 @@ namespace PrettyLogcat.Models
             {
                 _rawLine = value ?? string.Empty;
                 OnPropertyChanged(nameof(RawLine));
+            }
+        }
+
+        public bool IsPinned
+        {
+            get => _isPinned;
+            set
+            {
+                _isPinned = value;
+                OnPropertyChanged(nameof(IsPinned));
+            }
+        }
+
+        public int OriginalIndex
+        {
+            get => _originalIndex;
+            set
+            {
+                _originalIndex = value;
+                OnPropertyChanged(nameof(OriginalIndex));
             }
         }
 

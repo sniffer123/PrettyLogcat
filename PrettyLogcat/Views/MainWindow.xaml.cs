@@ -1,8 +1,10 @@
 using System;
 using PrettyLogcat.ViewModels;
 using PrettyLogcat.Services;
+using PrettyLogcat.Models;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Linq;
 
 namespace PrettyLogcat.Views
@@ -71,6 +73,26 @@ namespace PrettyLogcat.Views
                     {
                         button.Content = "📱";
                         button.IsEnabled = true;
+                    }
+                }
+            }
+        }
+
+        private void PinnedLogItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListBoxItem item && item.DataContext is LogEntry logEntry)
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    // 跳转到该日志条目
+                    viewModel.JumpToLogCommand.Execute(logEntry);
+                    
+                    // 在DataGrid中选中该条目
+                    var dataGrid = this.FindName("LogDataGrid") as DataGrid;
+                    if (dataGrid?.ItemsSource != null)
+                    {
+                        dataGrid.SelectedItem = logEntry;
+                        dataGrid.ScrollIntoView(logEntry);
                     }
                 }
             }
