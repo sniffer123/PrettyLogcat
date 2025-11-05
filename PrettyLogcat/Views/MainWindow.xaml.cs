@@ -80,14 +80,14 @@ namespace PrettyLogcat.Views
 
         private void PinnedLogItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is ListBoxItem item && item.DataContext is LogEntry logEntry)
+            if (sender is DataGridRow row && row.DataContext is LogEntry logEntry)
             {
                 if (DataContext is MainViewModel viewModel)
                 {
                     // 跳转到该日志条目
                     viewModel.JumpToLogCommand.Execute(logEntry);
                     
-                    // 在DataGrid中选中该条目
+                    // 在主DataGrid中选中该条目
                     var dataGrid = this.FindName("LogDataGrid") as DataGrid;
                     if (dataGrid?.ItemsSource != null)
                     {

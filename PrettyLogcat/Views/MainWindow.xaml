@@ -12,6 +12,7 @@
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
         <converters:BooleanToTextWrappingConverter x:Key="BooleanToTextWrappingConverter"/>
         <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
+        <converters:LogLevelToTextBrushConverter x:Key="LogLevelToTextBrushConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
@@ -239,36 +240,83 @@
                     </Border>
 
                     <!-- Pinned Logs -->
-                    <Border Grid.Row="2" Background="#E8F5E8" Padding="4" 
+                    <Border Grid.Row="2" Background="#F9FFF9" Padding="0" 
                             Visibility="{Binding PinnedLogs.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                            BorderThickness="0,0,0,1" BorderBrush="#C8E6C9">
-                        <Expander Header="📌 Pinned Logs" IsExpanded="True">
-                            <ListBox ItemsSource="{Binding PinnedLogs}" 
-                                     MaxHeight="120"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="2">
-                                            <TextBlock Text="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" 
-                                                       FontFamily="Consolas" FontSize="10" Width="80" Margin="0,0,4,0"/>
-                                            <TextBlock Text="{Binding Level}" 
-                                                       Foreground="{Binding LevelBrush}" FontWeight="Bold" 
-                                                       FontSize="10" Width="30" Margin="0,0,4,0"/>
-                                            <TextBlock Text="{Binding Tag}" 
-                                                       FontSize="10" Width="100" Margin="0,0,4,0"/>
-                                            <TextBlock Text="{Binding Message}" 
-                                                       FontSize="10" TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem">
+                            BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Compact Header -->
+                            <Border Grid.Row="0" Background="#F0F8F0" Padding="8,4" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                                <DockPanel>
+                                    <TextBlock Text="📌 Pinned Logs" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding PinnedLogs.Count, StringFormat='({0})'}" 
+                                               FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </DockPanel>
+                            </Border>
+                            
+                            <!-- Pinned Logs DataGrid -->
+                            <DataGrid Grid.Row="1" 
+                                      ItemsSource="{Binding PinnedLogs}"
+                                      MaxHeight="150"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      GridLinesVisibility="Horizontal"
+                                      HeadersVisibility="None"
+                                      CanUserResizeColumns="False"
+                                      CanUserSortColumns="False"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      ScrollViewer.CanContentScroll="True"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                      FontFamily="Consolas, Courier New, monospace"
+                                      FontSize="11"
+                                      Background="White"
+                                      AlternatingRowBackground="#FAFAFA">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="90"
+                                                        Visibility="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <DataGridTemplateColumn Width="50"
+                                                            Visibility="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Level}" 
+                                                           Foreground="{Binding LevelBrush}"
+                                                           FontWeight="Bold"
+                                                           HorizontalAlignment="Center"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTextColumn Binding="{Binding Pid}" Width="50"
+                                                        Visibility="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <DataGridTextColumn Binding="{Binding Tid}" Width="50"
+                                                        Visibility="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <DataGridTextColumn Binding="{Binding Tag}" Width="100"
+                                                        Visibility="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    <DataGridTemplateColumn Width="*"
+                                                            Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Message}" 
+                                                           Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Message}"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
                                         <EventSetter Event="MouseDoubleClick" Handler="PinnedLogItem_MouseDoubleClick"/>
+                                        <Setter Property="Height" Value="20"/>
                                     </Style>
-                                </ListBox.ItemContainerStyle>
-                            </ListBox>
-                        </Expander>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </Grid>
                     </Border>
 
                     <!-- Log Content -->
@@ -306,9 +354,29 @@
                                 </MenuItem>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="ContextMenu">
+                                    <Setter.Value>
+                                        <ContextMenu>
+                                            <MenuItem Header="Show/Hide Columns" IsEnabled="False" FontWeight="Bold"/>
+                                            <Separator/>
+                                            <MenuItem Header="Time" IsCheckable="True" IsChecked="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="Level" IsCheckable="True" IsChecked="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="PID" IsCheckable="True" IsChecked="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="TID" IsCheckable="True" IsChecked="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="Tag" IsCheckable="True" IsChecked="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="Message" IsCheckable="True" IsChecked="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                        </ContextMenu>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Time" Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="100"/>
-                            <DataGridTemplateColumn Header="Level" Width="60">
+                            <DataGridTextColumn Header="Time" Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="100"
+                                                Visibility="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <DataGridTemplateColumn Header="Level" Width="60"
+                                                    Visibility="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Level}" 
@@ -318,12 +386,18 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60"/>
-                            <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="120"/>
-                            <DataGridTemplateColumn Header="Message" Width="*">
+                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60"
+                                                Visibility="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <DataGridTextColumn Header="TID" Binding="{Binding Tid}" Width="60"
+                                                Visibility="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="120"
+                                                Visibility="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <DataGridTemplateColumn Header="Message" Width="*"
+                                                    Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding Message}" 
+                                                   Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
                                                    TextWrapping="{Binding DataContext.WordWrap, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToTextWrappingConverter}}"
                                                    Padding="4,2"/>
                                     </DataTemplate>

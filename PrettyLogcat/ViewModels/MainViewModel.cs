@@ -41,6 +41,14 @@ namespace PrettyLogcat.ViewModels
         private LogEntry? _selectedLogEntry;
         private CancellationTokenSource? _logcatCancellationTokenSource;
         private IDisposable? _logEntriesSubscription;
+
+        // Column visibility properties
+        private bool _showTimeColumn = true;
+        private bool _showLevelColumn = true;
+        private bool _showPidColumn = true;
+        private bool _showTidColumn = false;
+        private bool _showTagColumn = true;
+        private bool _showMessageColumn = true;
         
         // 日志缓存和批量更新相关
         private readonly Queue<LogEntry> _logEntryCache = new();
@@ -185,6 +193,85 @@ namespace PrettyLogcat.ViewModels
                 {
                     _selectedLogEntry = value;
                     OnPropertyChanged(nameof(SelectedLogEntry));
+                }
+            }
+        }
+
+        // Column visibility properties
+        public bool ShowTimeColumn
+        {
+            get => _showTimeColumn;
+            set
+            {
+                if (_showTimeColumn != value)
+                {
+                    _showTimeColumn = value;
+                    OnPropertyChanged(nameof(ShowTimeColumn));
+                }
+            }
+        }
+
+        public bool ShowLevelColumn
+        {
+            get => _showLevelColumn;
+            set
+            {
+                if (_showLevelColumn != value)
+                {
+                    _showLevelColumn = value;
+                    OnPropertyChanged(nameof(ShowLevelColumn));
+                }
+            }
+        }
+
+        public bool ShowPidColumn
+        {
+            get => _showPidColumn;
+            set
+            {
+                if (_showPidColumn != value)
+                {
+                    _showPidColumn = value;
+                    OnPropertyChanged(nameof(ShowPidColumn));
+                }
+            }
+        }
+
+        public bool ShowTidColumn
+        {
+            get => _showTidColumn;
+            set
+            {
+                if (_showTidColumn != value)
+                {
+                    _showTidColumn = value;
+                    OnPropertyChanged(nameof(ShowTidColumn));
+                }
+            }
+        }
+
+        public bool ShowTagColumn
+        {
+            get => _showTagColumn;
+            set
+            {
+                if (_showTagColumn != value)
+                {
+                    _showTagColumn = value;
+                    OnPropertyChanged(nameof(ShowTagColumn));
+                }
+            }
+        }
+
+        public bool ShowMessageColumn
+        {
+            get => _showMessageColumn;
+            set
+            {
+                if (_showMessageColumn != value)
+                {
+                    _showMessageColumn = value;
+                    OnPropertyChanged(nameof(ShowMessageColumn));
                 }
             }
         }
