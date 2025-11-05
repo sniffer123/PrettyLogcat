@@ -302,24 +302,46 @@ namespace PrettyLogcat.Services
         private IEnumerable<AndroidDevice> ParseDevicesOutput(string output)
         {
             var devices = new List<AndroidDevice>();
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                _logger.LogWarning("ADB devices output is empty");
+                return devices;
+            }
+
+            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            _logger.LogDebug("Parsing {LineCount} lines from ADB output", lines.Length);
 
             foreach (var line in lines.Skip(1)) // Skip "List of devices attached"
             {
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
-                var parts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 2)
-                    continue;
+                _logger.LogDebug("Parsing device line: '{Line}'", line);
 
-                var deviceId = parts[0].Trim();
-                var stateString = parts[1].Trim();
-
-                if (!Enum.TryParse<DeviceState>(stateString, true, out var state))
+                // 使用正则表达式来解析设备行，格式：deviceId + 多个空格 + state + 空格 + properties
+                // 例如：emulator-5556          device product:aurora model:24031PN0DC device:aurora transport_id:1
+                var match = Regex.Match(line.Trim(), @"^(\S+)\s+(\S+)(.*)$");
+                if (!match.Success)
                 {
-                    state = DeviceState.Unknown;
+                    _logger.LogWarning("Invalid device line format: '{Line}'", line);
+                    continue;
                 }
+
+                var deviceId = match.Groups[1].Value.Trim();
+                var stateString = match.Groups[2].Value.Trim();
+                var propertiesString = match.Groups[3].Value.Trim();
+
+                // 映射设备状态
+                DeviceState state = stateString.ToLowerInvariant() switch
+                {
+                    "device" => DeviceState.Device,
+                    "offline" => DeviceState.Offline,
+                    "unauthorized" => DeviceState.Unauthorized,
+                    "bootloader" => DeviceState.Bootloader,
+                    "recovery" => DeviceState.Recovery,
+                    _ => DeviceState.Unknown
+                };
 
                 var device = new AndroidDevice
                 {
@@ -328,12 +350,13 @@ namespace PrettyLogcat.Services
                 };
 
                 // Parse additional properties if available
-                if (parts.Length > 2)
+                if (!string.IsNullOrWhiteSpace(propertiesString))
                 {
-                    var properties = parts[2];
-                    var modelMatch = Regex.Match(properties, @"model:([^\s]+)");
-                    var productMatch = Regex.Match(properties, @"product:([^\s]+)");
-                    var deviceMatch = Regex.Match(properties, @"device:([^\s]+)");
+                    _logger.LogDebug("Device properties: '{Properties}'", propertiesString);
+
+                    var modelMatch = Regex.Match(propertiesString, @"model:([^\s]+)");
+                    var productMatch = Regex.Match(propertiesString, @"product:([^\s]+)");
+                    var deviceMatch = Regex.Match(propertiesString, @"device:([^\s]+)");
 
                     if (modelMatch.Success)
                         device.Model = modelMatch.Groups[1].Value;
@@ -343,9 +366,12 @@ namespace PrettyLogcat.Services
                         device.Device = deviceMatch.Groups[1].Value;
                 }
 
+                _logger.LogDebug("Parsed device: ID={DeviceId}, State={State}, Model={Model}", 
+                    device.Id, device.State, device.Model);
                 devices.Add(device);
             }
 
+            _logger.LogInformation("Successfully parsed {DeviceCount} devices", devices.Count);
             return devices;
         }
 

@@ -15,6 +15,7 @@ namespace PrettyLogcat.Services
         private Timer? _deviceMonitorTimer;
         private List<AndroidDevice> _lastKnownDevices = new();
         private bool _isMonitoring;
+        private bool _isRefreshing;
 
         public event EventHandler<DeviceEventArgs>? DeviceConnected;
         public event EventHandler<DeviceEventArgs>? DeviceDisconnected;
@@ -103,8 +104,17 @@ namespace PrettyLogcat.Services
 
         public async Task RefreshDevicesAsync()
         {
+            if (_isRefreshing)
+            {
+                _logger.LogDebug("Device refresh already in progress, skipping");
+                return;
+            }
+
             try
             {
+                _isRefreshing = true;
+                _logger.LogDebug("Starting device refresh");
+
                 var devices = await GetDevicesAsync();
                 var deviceList = devices.ToList();
 
@@ -130,10 +140,16 @@ namespace PrettyLogcat.Services
 
                 _lastKnownDevices = deviceList;
                 DevicesChanged?.Invoke(this, deviceList);
+                
+                _logger.LogDebug("Device refresh completed");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to refresh devices");
+            }
+            finally
+            {
+                _isRefreshing = false;
             }
         }
 
