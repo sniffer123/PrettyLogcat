@@ -24,6 +24,7 @@ namespace PrettyLogcat.Services
         {
             _logger = logger;
             _adbPath = FindAdbPath();
+            _logger.LogInformation("ADB Service initialized with path: {AdbPath}", _adbPath);
         }
 
         public async Task<bool> IsAdbAvailableAsync()
@@ -31,7 +32,9 @@ namespace PrettyLogcat.Services
             try
             {
                 var result = await ExecuteAdbCommandAsync("version");
-                return !string.IsNullOrEmpty(result) && result.Contains("Android Debug Bridge");
+                var isAvailable = !string.IsNullOrEmpty(result) && result.Contains("Android Debug Bridge");
+                _logger.LogInformation("ADB availability check: {IsAvailable}", isAvailable);
+                return isAvailable;
             }
             catch (Exception ex)
             {
@@ -44,8 +47,14 @@ namespace PrettyLogcat.Services
         {
             try
             {
+                _logger.LogDebug("Executing 'adb devices -l' command");
                 var result = await ExecuteAdbCommandAsync("devices -l");
-                return ParseDevicesOutput(result);
+                _logger.LogDebug("ADB devices output: {Output}", result);
+                
+                var devices = ParseDevicesOutput(result);
+                _logger.LogInformation("Found {DeviceCount} devices", devices.Count());
+                
+                return devices;
             }
             catch (Exception ex)
             {
@@ -197,6 +206,8 @@ namespace PrettyLogcat.Services
         {
             try
             {
+                _logger.LogDebug("Executing ADB command: {Command}", command);
+                
                 using var process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -216,6 +227,12 @@ namespace PrettyLogcat.Services
                 var error = await process.StandardError.ReadToEndAsync();
                 
                 await process.WaitForExitAsync(cancellationToken);
+
+                _logger.LogDebug("ADB command output: {Output}", output);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _logger.LogDebug("ADB command error: {Error}", error);
+                }
 
                 if (process.ExitCode != 0 && !string.IsNullOrEmpty(error))
                 {
@@ -259,40 +276,48 @@ namespace PrettyLogcat.Services
             // Try common ADB locations
             var commonPaths = new[]
             {
+                @"G:\Android\Sdk\platform-tools\adb.exe", // 根据实际检测到的路径
                 @"C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe",
                 @"C:\Android\Sdk\platform-tools\adb.exe",
                 @"C:\Users\" + Environment.UserName + @"\AppData\Local\Android\Sdk\platform-tools\adb.exe",
-                "adb.exe" // Try PATH
+                "adb" // Try PATH without .exe for cross-platform
             };
 
             foreach (var path in commonPaths)
             {
-                if (File.Exists(path) || path == "adb.exe")
+                try
                 {
-                    try
+                    // 对于PATH中的adb，直接测试
+                    if (path == "adb" || File.Exists(path))
                     {
-                        using var process = Process.Start(new ProcessStartInfo
+                        using var process = new Process
                         {
-                            FileName = path,
-                            Arguments = "version",
-                            UseShellExecute = false,
-                            RedirectStandardOutput = true,
-                            CreateNoWindow = true
-                        });
-                        
-                        if (process != null)
-                        {
-                            process.WaitForExit(5000);
-                            if (process.ExitCode == 0)
+                            StartInfo = new ProcessStartInfo
                             {
-                                return path;
+                                FileName = path,
+                                Arguments = "version",
+                                UseShellExecute = false,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                CreateNoWindow = true
                             }
+                        };
+                        
+                        process.Start();
+                        var output = process.StandardOutput.ReadToEnd();
+                        process.WaitForExit(5000);
+                        
+                        if (process.ExitCode == 0 && output.Contains("Android Debug Bridge"))
+                        {
+                            _logger.LogInformation("Found ADB at: {AdbPath}", path);
+                            return path;
                         }
                     }
-                    catch
-                    {
-                        continue;
-                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Failed to test ADB path {Path}: {Error}", path, ex.Message);
+                    continue;
                 }
             }
 
@@ -302,24 +327,44 @@ namespace PrettyLogcat.Services
         private IEnumerable<AndroidDevice> ParseDevicesOutput(string output)
         {
             var devices = new List<AndroidDevice>();
-            var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                _logger.LogWarning("ADB devices output is empty");
+                return devices;
+            }
+
+            var lines = output.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+            _logger.LogDebug("Parsing {LineCount} lines from ADB output", lines.Length);
 
             foreach (var line in lines.Skip(1)) // Skip "List of devices attached"
             {
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
 
-                var parts = line.Split('\t', StringSplitOptions.RemoveEmptyEntries);
+                _logger.LogDebug("Parsing device line: '{Line}'", line);
+
+                // 使用更灵活的分割方式，支持空格和制表符
+                var parts = line.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length < 2)
+                {
+                    _logger.LogWarning("Invalid device line format: '{Line}'", line);
                     continue;
+                }
 
                 var deviceId = parts[0].Trim();
                 var stateString = parts[1].Trim();
 
-                if (!Enum.TryParse<DeviceState>(stateString, true, out var state))
+                // 映射设备状态
+                DeviceState state = stateString.ToLowerInvariant() switch
                 {
-                    state = DeviceState.Unknown;
-                }
+                    "device" => DeviceState.Device,
+                    "offline" => DeviceState.Offline,
+                    "unauthorized" => DeviceState.Unauthorized,
+                    "bootloader" => DeviceState.Bootloader,
+                    "recovery" => DeviceState.Recovery,
+                    _ => DeviceState.Unknown
+                };
 
                 var device = new AndroidDevice
                 {
@@ -330,10 +375,12 @@ namespace PrettyLogcat.Services
                 // Parse additional properties if available
                 if (parts.Length > 2)
                 {
-                    var properties = parts[2];
-                    var modelMatch = Regex.Match(properties, @"model:([^\s]+)");
-                    var productMatch = Regex.Match(properties, @"product:([^\s]+)");
-                    var deviceMatch = Regex.Match(properties, @"device:([^\s]+)");
+                    var propertiesString = string.Join(" ", parts.Skip(2));
+                    _logger.LogDebug("Device properties: '{Properties}'", propertiesString);
+
+                    var modelMatch = Regex.Match(propertiesString, @"model:([^\s]+)");
+                    var productMatch = Regex.Match(propertiesString, @"product:([^\s]+)");
+                    var deviceMatch = Regex.Match(propertiesString, @"device:([^\s]+)");
 
                     if (modelMatch.Success)
                         device.Model = modelMatch.Groups[1].Value;
@@ -343,9 +390,12 @@ namespace PrettyLogcat.Services
                         device.Device = deviceMatch.Groups[1].Value;
                 }
 
+                _logger.LogDebug("Parsed device: ID={DeviceId}, State={State}, Model={Model}", 
+                    device.Id, device.State, device.Model);
                 devices.Add(device);
             }
 
+            _logger.LogInformation("Successfully parsed {DeviceCount} devices", devices.Count);
             return devices;
         }
 

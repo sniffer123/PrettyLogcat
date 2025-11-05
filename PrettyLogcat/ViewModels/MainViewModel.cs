@@ -270,10 +270,13 @@ namespace PrettyLogcat.ViewModels
                 }
 
                 // Start device monitoring
+                _logger.LogInformation("Starting device monitoring...");
                 _deviceService.StartDeviceMonitoring();
                 
                 // Initial device refresh
+                _logger.LogInformation("Performing initial device refresh...");
                 await _deviceService.RefreshDevicesAsync();
+                _logger.LogInformation("Initial device refresh completed");
 
                 StatusMessage = "Ready";
             }
@@ -476,6 +479,13 @@ namespace PrettyLogcat.ViewModels
 
         private void OnDevicesChanged(object? sender, IEnumerable<AndroidDevice> devices)
         {
+            _logger.LogInformation("OnDevicesChanged called with {DeviceCount} devices", devices.Count());
+            foreach (var device in devices)
+            {
+                _logger.LogInformation("Device: {DeviceId}, State: {State}, Model: {Model}, Name: {Name}", 
+                    device.Id, device.State, device.Model, device.Name);
+            }
+            
             var app = System.Windows.Application.Current;
             if (app != null)
             {
