@@ -236,7 +236,7 @@ namespace PrettyLogcat.ViewModels
 
             // Initialize commands
             ConnectCommand = new RelayCommand(async () => await ExecuteConnectCommand(), CanExecuteConnect);
-            RefreshDevicesCommand = new RelayCommand(async () => await ExecuteRefreshDevicesCommand());
+            RefreshDevicesCommand = new RelayCommand(async () => await ExecuteRefreshDevicesCommand(), CanExecuteRefreshDevices);
             ClearLogsCommand = new RelayCommand(ExecuteClearLogsCommand, () => _allLogs.Count > 0);
             SaveLogsCommand = new RelayCommand(async () => await ExecuteSaveLogsCommand(), () => _allLogs.Count > 0);
             OpenFileCommand = new RelayCommand(async () => await ExecuteOpenFileCommand());
@@ -269,7 +269,7 @@ namespace PrettyLogcat.ViewModels
                     return;
                 }
 
-                // Start device monitoring
+                // Initialize device service (manual refresh mode)
                 _deviceService.StartDeviceMonitoring();
                 
                 // Initial device refresh
@@ -291,7 +291,12 @@ namespace PrettyLogcat.ViewModels
 
         private bool CanExecuteConnect()
         {
-            return SelectedDevice != null && SelectedDevice.IsOnline;
+            return SelectedDevice != null && SelectedDevice.IsOnline && !IsLoading;
+        }
+
+        private bool CanExecuteRefreshDevices()
+        {
+            return !IsLoading;
         }
 
         private async Task ExecuteConnectCommand()
@@ -481,19 +486,32 @@ namespace PrettyLogcat.ViewModels
             {
                 app.Dispatcher.Invoke(() =>
                 {
+                    // 保存当前选中的设备ID
+                    var selectedDeviceId = SelectedDevice?.Id;
+                    
                     _devices.Clear();
                     foreach (var device in devices)
                     {
                         _devices.Add(device);
                     }
 
-                    // If selected device is no longer available, clear selection
-                    if (SelectedDevice != null && !devices.Any(d => d.Id == SelectedDevice.Id))
+                    // 重新选择之前选中的设备（如果仍然存在）
+                    if (!string.IsNullOrEmpty(selectedDeviceId))
                     {
-                        SelectedDevice = null;
-                        if (IsConnected)
+                        var existingDevice = devices.FirstOrDefault(d => d.Id == selectedDeviceId);
+                        if (existingDevice != null)
                         {
-                            _ = Task.Run(DisconnectFromDevice);
+                            // 设备仍然存在，保持选中状态
+                            SelectedDevice = existingDevice;
+                        }
+                        else
+                        {
+                            // 设备不再存在，清除选择并断开连接
+                            SelectedDevice = null;
+                            if (IsConnected)
+                            {
+                                _ = Task.Run(DisconnectFromDevice);
+                            }
                         }
                     }
                 });

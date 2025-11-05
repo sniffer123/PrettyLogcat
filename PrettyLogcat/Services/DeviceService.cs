@@ -159,8 +159,8 @@ namespace PrettyLogcat.Services
                 return;
 
             _isMonitoring = true;
-            _deviceMonitorTimer = new Timer(MonitorDevicesCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
-            _logger.LogInformation("Started device monitoring");
+            // 不再自动监控，只在手动刷新时更新设备列表
+            _logger.LogInformation("Device monitoring initialized (manual refresh mode)");
         }
 
         public void StopDeviceMonitoring()
