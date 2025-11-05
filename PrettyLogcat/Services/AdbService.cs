@@ -375,6 +375,69 @@ namespace PrettyLogcat.Services
             return devices;
         }
 
+        public async Task<IEnumerable<RunningPackageInfo>> GetRunningPackagesAsync(string deviceId)
+        {
+            try
+            {
+                _logger.LogDebug("Getting running packages for device {DeviceId}", deviceId);
+                
+                var psResult = await ExecuteDeviceCommandAsync(deviceId, "shell ps");
+                var runningPackages = new List<RunningPackageInfo>();
+                
+                if (string.IsNullOrEmpty(psResult))
+                {
+                    _logger.LogWarning("No process information received from device {DeviceId}", deviceId);
+                    return runningPackages;
+                }
+                
+                var lines = psResult.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+                var packagePidMap = new Dictionary<string, int>();
+                
+                foreach (var line in lines.Skip(1))
+                {
+                    var trimmedLine = line.Trim();
+                    if (string.IsNullOrEmpty(trimmedLine)) continue;
+                    
+                    var parts = trimmedLine.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 9)
+                    {
+                        if (int.TryParse(parts[1], out var pid))
+                        {
+                            var processName = parts[8];
+                            
+                            if (processName.Contains('.') && !processName.StartsWith('[') && 
+                                !processName.Contains("kernel") && !processName.Contains("kthreadd"))
+                            {
+                                packagePidMap[processName] = pid;
+                            }
+                        }
+                    }
+                }
+                
+                foreach (var kvp in packagePidMap)
+                {
+                    var packageInfo = new RunningPackageInfo
+                    {
+                        Pid = kvp.Value,
+                        PackageName = kvp.Key,
+                        ProcessName = kvp.Key
+                    };
+                    
+                    runningPackages.Add(packageInfo);
+                }
+                
+                _logger.LogInformation("Found {PackageCount} running packages on device {DeviceId}", 
+                    runningPackages.Count, deviceId);
+                
+                return runningPackages.OrderBy(p => p.PackageName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get running packages for device {DeviceId}", deviceId);
+                return Enumerable.Empty<RunningPackageInfo>();
+            }
+        }
+
         public void Dispose()
         {
             StopLogcatStream();

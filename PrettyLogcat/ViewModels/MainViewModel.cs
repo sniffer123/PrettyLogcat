@@ -686,6 +686,24 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
+        public async Task<IEnumerable<RunningPackageInfo>> GetRunningPackagesAsync()
+        {
+            if (SelectedDevice == null || !IsConnected)
+            {
+                return Enumerable.Empty<RunningPackageInfo>();
+            }
+
+            try
+            {
+                return await _adbService.GetRunningPackagesAsync(SelectedDevice.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to get running packages");
+                return Enumerable.Empty<RunningPackageInfo>();
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)

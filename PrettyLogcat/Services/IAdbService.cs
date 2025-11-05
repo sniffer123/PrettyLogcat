@@ -17,5 +17,6 @@ namespace PrettyLogcat.Services
         IObservable<string> StartLogcatStream(string deviceId, CancellationToken cancellationToken);
         Task<string> ExecuteAdbCommandAsync(string command, CancellationToken cancellationToken = default);
         Task<string> ExecuteDeviceCommandAsync(string deviceId, string command, CancellationToken cancellationToken = default);
+        Task<IEnumerable<RunningPackageInfo>> GetRunningPackagesAsync(string deviceId);
     }
 }
