@@ -21,6 +21,16 @@ namespace PrettyLogcat.Services
         IEnumerable<LogEntry> FilterLogEntries(IEnumerable<LogEntry> logEntries);
         void ResetFilters();
         
+        // 历史记录功能
+        IEnumerable<string> MessageFilterHistory { get; }
+        IEnumerable<string> TagFilterHistory { get; }
+        IEnumerable<string> PidFilterHistory { get; }
+        
+        // PID包名功能
+        IEnumerable<PidPackageInfo> AvailablePidPackages { get; }
+        void UpdatePidPackageMapping(int pid, string packageName);
+        void ClearHistory();
+        
         event EventHandler? FiltersChanged;
     }
 }

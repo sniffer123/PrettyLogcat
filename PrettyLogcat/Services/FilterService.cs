@@ -1,6 +1,7 @@
 using PrettyLogcat.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace PrettyLogcat.Services
@@ -16,6 +17,15 @@ namespace PrettyLogcat.Services
         private string _tagFilter = string.Empty;
         private string _messageFilter = string.Empty;
         private string _pidFilter = string.Empty;
+        
+        // 搜索历史记录
+        private readonly List<string> _messageFilterHistory = new();
+        private readonly List<string> _tagFilterHistory = new();
+        private readonly List<string> _pidFilterHistory = new();
+        private const int MaxHistoryItems = 20;
+        
+        // PID到包名的映射缓存
+        private readonly Dictionary<int, string> _pidToPackageMap = new();
 
         public bool ShowVerbose
         {
@@ -102,7 +112,12 @@ namespace PrettyLogcat.Services
             {
                 if (_tagFilter != value)
                 {
-                    _tagFilter = value ?? string.Empty;
+                    var newValue = value ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(newValue))
+                    {
+                        AddToHistory(_tagFilterHistory, newValue);
+                    }
+                    _tagFilter = newValue;
                     OnFiltersChanged();
                 }
             }
@@ -115,7 +130,12 @@ namespace PrettyLogcat.Services
             {
                 if (_messageFilter != value)
                 {
-                    _messageFilter = value ?? string.Empty;
+                    var newValue = value ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(newValue))
+                    {
+                        AddToHistory(_messageFilterHistory, newValue);
+                    }
+                    _messageFilter = newValue;
                     OnFiltersChanged();
                 }
             }
@@ -128,13 +148,26 @@ namespace PrettyLogcat.Services
             {
                 if (_pidFilter != value)
                 {
-                    _pidFilter = value ?? string.Empty;
+                    var newValue = value ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(newValue))
+                    {
+                        AddToHistory(_pidFilterHistory, newValue);
+                    }
+                    _pidFilter = newValue;
                     OnFiltersChanged();
                 }
             }
         }
 
         public event EventHandler? FiltersChanged;
+
+        // 历史记录属性
+        public IEnumerable<string> MessageFilterHistory => _messageFilterHistory.AsReadOnly();
+        public IEnumerable<string> TagFilterHistory => _tagFilterHistory.AsReadOnly();
+        public IEnumerable<string> PidFilterHistory => _pidFilterHistory.AsReadOnly();
+        
+        // PID包名选择项
+        public IEnumerable<PidPackageInfo> AvailablePidPackages => GetAvailablePidPackages();
 
         public bool ShouldIncludeLogEntry(LogEntry logEntry)
         {
@@ -210,5 +243,54 @@ namespace PrettyLogcat.Services
         {
             FiltersChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        private void AddToHistory(List<string> history, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return;
+
+            // 移除如果已存在
+            history.Remove(value);
+            
+            // 添加到开头
+            history.Insert(0, value);
+            
+            // 限制历史记录数量
+            if (history.Count > MaxHistoryItems)
+            {
+                history.RemoveAt(history.Count - 1);
+            }
+        }
+
+        public void UpdatePidPackageMapping(int pid, string packageName)
+        {
+            if (!string.IsNullOrWhiteSpace(packageName))
+            {
+                _pidToPackageMap[pid] = packageName;
+            }
+        }
+
+        private IEnumerable<PidPackageInfo> GetAvailablePidPackages()
+        {
+            return _pidToPackageMap
+                .Select(kvp => new PidPackageInfo { Pid = kvp.Key, PackageName = kvp.Value })
+                .OrderBy(p => p.PackageName)
+                .ToList();
+        }
+
+        public void ClearHistory()
+        {
+            _messageFilterHistory.Clear();
+            _tagFilterHistory.Clear();
+            _pidFilterHistory.Clear();
+        }
+    }
+
+    // PID包名信息类
+    public class PidPackageInfo
+    {
+        public int Pid { get; set; }
+        public string PackageName { get; set; } = string.Empty;
+        public string DisplayText => $"{PackageName} (PID: {Pid})";
     }
 }

@@ -218,6 +218,14 @@ namespace PrettyLogcat.ViewModels
         public int TotalLogCount => _allLogs.Count;
         public int FilteredLogCount => _filteredLogs.Count;
 
+        // 过滤器历史记录
+        public IEnumerable<string> MessageFilterHistory => _filterService.MessageFilterHistory;
+        public IEnumerable<string> TagFilterHistory => _filterService.TagFilterHistory;
+        public IEnumerable<string> PidFilterHistory => _filterService.PidFilterHistory;
+        
+        // PID包名选择
+        public IEnumerable<PidPackageInfo> AvailablePidPackages => _filterService.AvailablePidPackages;
+
         // Commands
         public ICommand ConnectCommand { get; }
         public ICommand RefreshDevicesCommand { get; }
@@ -541,6 +549,12 @@ namespace PrettyLogcat.ViewModels
             OnPropertyChanged(nameof(TagFilter));
             OnPropertyChanged(nameof(MessageFilter));
             OnPropertyChanged(nameof(PidFilter));
+            
+            // Notify UI of history changes
+            OnPropertyChanged(nameof(MessageFilterHistory));
+            OnPropertyChanged(nameof(TagFilterHistory));
+            OnPropertyChanged(nameof(PidFilterHistory));
+            OnPropertyChanged(nameof(AvailablePidPackages));
         }
 
         private void OnLogEntryReceived(LogEntry logEntry)
@@ -587,6 +601,9 @@ namespace PrettyLogcat.ViewModels
                     {
                         _allLogs.Add(logEntry);
                         
+                        // 尝试从Tag中提取包名信息并更新PID映射
+                        TryExtractPackageNameFromLogEntry(logEntry);
+                        
                         // 检查是否应该添加到过滤后的日志集合
                         if (_filterService.ShouldIncludeLogEntry(logEntry))
                         {
@@ -623,6 +640,49 @@ namespace PrettyLogcat.ViewModels
 
                     OnPropertyChanged(nameof(FilteredLogCount));
                 });
+            }
+        }
+
+        private void TryExtractPackageNameFromLogEntry(LogEntry logEntry)
+        {
+            // 尝试从Tag中提取包名信息
+            // 常见的包名格式：com.example.app, 或者Tag中包含包名
+            var tag = logEntry.Tag;
+            
+            // 检查Tag是否看起来像包名（包含点号且符合Java包名规范）
+            if (!string.IsNullOrWhiteSpace(tag) && 
+                tag.Contains('.') && 
+                tag.Length > 3 &&
+                !tag.Contains(' ') &&
+                char.IsLetter(tag[0]))
+            {
+                // 可能是包名，更新映射
+                _filterService.UpdatePidPackageMapping(logEntry.Pid, tag);
+                
+                // 通知UI更新
+                OnPropertyChanged(nameof(AvailablePidPackages));
+            }
+            
+            // 也可以尝试从Message中提取包名信息
+            // 例如：ActivityManager相关的日志可能包含包名
+            if (tag == "ActivityManager" || tag == "PackageManager")
+            {
+                var message = logEntry.Message;
+                // 简单的包名提取逻辑
+                var words = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var word in words)
+                {
+                    if (word.Contains('.') && 
+                        word.Length > 3 && 
+                        char.IsLetter(word[0]) &&
+                        !word.Contains('/') &&
+                        System.Text.RegularExpressions.Regex.IsMatch(word, @"^[a-zA-Z][a-zA-Z0-9_.]*[a-zA-Z0-9]$"))
+                    {
+                        _filterService.UpdatePidPackageMapping(logEntry.Pid, word);
+                        OnPropertyChanged(nameof(AvailablePidPackages));
+                        break;
+                    }
+                }
             }
         }
 
