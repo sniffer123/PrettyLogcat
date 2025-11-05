@@ -86,28 +86,10 @@
                         <!-- Text Filters -->
                         <TextBlock Text="Filters" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                         
-                        <!-- Tag Filter -->
-                        <TextBox Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,8">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="4">
-                                                    <ScrollViewer x:Name="PART_ContentHost"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
-                        <TextBlock Text="Filter by Tag" FontSize="10" Foreground="Gray" Margin="0,-6,0,8"/>
-                        
-                        <!-- Message Filter -->
+                        <!-- Message Filter (First) -->
+                        <TextBlock Text="Filter by Message" FontSize="10" Foreground="Gray" Margin="0,0,0,2"/>
                         <TextBox Text="{Binding MessageFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,8">
+                                 Margin="0,0,0,12">
                             <TextBox.Style>
                                 <Style TargetType="TextBox">
                                     <Setter Property="Template">
@@ -122,9 +104,28 @@
                                 </Style>
                             </TextBox.Style>
                         </TextBox>
-                        <TextBlock Text="Filter by Message" FontSize="10" Foreground="Gray" Margin="0,-6,0,8"/>
+                        
+                        <!-- Tag Filter -->
+                        <TextBlock Text="Filter by Tag" FontSize="10" Foreground="Gray" Margin="0,0,0,2"/>
+                        <TextBox Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,0,12">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="TextBox">
+                                                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="4">
+                                                    <ScrollViewer x:Name="PART_ContentHost"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
                         
                         <!-- PID Filter -->
+                        <TextBlock Text="Filter by PID" FontSize="10" Foreground="Gray" Margin="0,0,0,2"/>
                         <TextBox Text="{Binding PidFilter, UpdateSourceTrigger=PropertyChanged}"
                                  Margin="0,0,0,16">
                             <TextBox.Style>
@@ -141,7 +142,6 @@
                                 </Style>
                             </TextBox.Style>
                         </TextBox>
-                        <TextBlock Text="Filter by PID" FontSize="10" Foreground="Gray" Margin="0,-14,0,16"/>
 
                         <!-- Control Buttons -->
                         <Button Command="{Binding ClearLogsCommand}" 
@@ -223,10 +223,12 @@
                                 <ToggleButton IsChecked="{Binding AutoScroll}" 
                                               Background="#E0E0E0"
                                               Content="⬇️"
+                                              ToolTip="Auto Scroll - Automatically scroll to bottom when new logs arrive"
                                               Margin="0,0,8,0"/>
                                 <ToggleButton IsChecked="{Binding WordWrap}" 
                                               Background="#E0E0E0"
-                                              Content="🔤"/>
+                                              Content="🔤"
+                                              ToolTip="Word Wrap - Enable text wrapping for long log messages"/>
                             </StackPanel>
                         </DockPanel>
                     </Border>

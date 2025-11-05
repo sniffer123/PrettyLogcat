@@ -37,6 +37,12 @@ namespace PrettyLogcat.ViewModels
         private bool _wordWrap = false;
         private CancellationTokenSource? _logcatCancellationTokenSource;
         private IDisposable? _logEntriesSubscription;
+        
+        // 日志缓存和批量更新相关
+        private readonly Queue<LogEntry> _logEntryCache = new();
+        private readonly object _cacheLock = new object();
+        private Timer? _uiUpdateTimer;
+        private bool _hasPendingUpdates = false;
 
         public ObservableCollection<AndroidDevice> Devices => _devices;
         public ObservableCollection<LogEntry> FilteredLogs => _filteredLogs;
@@ -248,6 +254,9 @@ namespace PrettyLogcat.ViewModels
             // Subscribe to log entries
             _logEntriesSubscription = _logcatService.LogEntries
                 .Subscribe(OnLogEntryReceived);
+
+            // Initialize UI update timer (200ms interval)
+            _uiUpdateTimer = new Timer(ProcessLogCache, null, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200));
 
             // Initialize
             _ = Task.Run(InitializeAsync);
@@ -536,19 +545,56 @@ namespace PrettyLogcat.ViewModels
 
         private void OnLogEntryReceived(LogEntry logEntry)
         {
-            // Ensure UI updates happen on the UI thread
+            // 将日志条目添加到缓存中，而不是直接更新UI
+            lock (_cacheLock)
+            {
+                _logEntryCache.Enqueue(logEntry);
+                _hasPendingUpdates = true;
+            }
+        }
+
+        private void ProcessLogCache(object? state)
+        {
+            if (!_hasPendingUpdates)
+                return;
+
+            List<LogEntry> entriesToProcess;
+            lock (_cacheLock)
+            {
+                if (_logEntryCache.Count == 0)
+                {
+                    _hasPendingUpdates = false;
+                    return;
+                }
+
+                // 批量取出缓存中的日志条目
+                entriesToProcess = new List<LogEntry>(_logEntryCache.Count);
+                while (_logEntryCache.Count > 0)
+                {
+                    entriesToProcess.Add(_logEntryCache.Dequeue());
+                }
+                _hasPendingUpdates = false;
+            }
+
+            // 在UI线程上批量更新
             var app = System.Windows.Application.Current;
-            if (app != null)
+            if (app != null && entriesToProcess.Count > 0)
             {
                 app.Dispatcher.Invoke(() =>
                 {
-                    _allLogs.Add(logEntry);
-                    
-                    if (_filterService.ShouldIncludeLogEntry(logEntry))
+                    // 批量添加到所有日志集合
+                    foreach (var logEntry in entriesToProcess)
                     {
-                        _filteredLogs.Add(logEntry);
+                        _allLogs.Add(logEntry);
+                        
+                        // 检查是否应该添加到过滤后的日志集合
+                        if (_filterService.ShouldIncludeLogEntry(logEntry))
+                        {
+                            _filteredLogs.Add(logEntry);
+                        }
                     }
 
+                    // 更新统计信息
                     OnPropertyChanged(nameof(TotalLogCount));
                     OnPropertyChanged(nameof(FilteredLogCount));
 
@@ -592,6 +638,7 @@ namespace PrettyLogcat.ViewModels
             _logcatCancellationTokenSource?.Cancel();
             _logcatCancellationTokenSource?.Dispose();
             _logEntriesSubscription?.Dispose();
+            _uiUpdateTimer?.Dispose();
             _deviceService.StopDeviceMonitoring();
             if (_logcatService is IDisposable disposableLogcatService)
                 disposableLogcatService.Dispose();
