@@ -9,6 +9,7 @@
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -20,8 +21,37 @@
                    FontWeight="Bold" 
                    Margin="0,0,0,12"/>
         
+        <!-- 搜索框 -->
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Grid.Column="0" 
+                       Text="Search:" 
+                       VerticalAlignment="Center" 
+                       Margin="0,0,8,0"/>
+            
+            <TextBox Grid.Column="1" 
+                     x:Name="SearchTextBox"
+                     Padding="4"
+                     TextChanged="SearchTextBox_TextChanged"
+                     KeyDown="SearchTextBox_KeyDown"
+                     ToolTip="Type to filter packages by name. Press Enter to select, Esc to clear."/>
+                     
+            <Button Grid.Column="2" 
+                    Content="✗" 
+                    Width="24" 
+                    Height="24"
+                    Margin="4,0,0,0"
+                    ToolTip="Clear search"
+                    Click="ClearSearch_Click"/>
+        </Grid>
+        
         <!-- 包列表 -->
-        <Border Grid.Row="1" 
+        <Border Grid.Row="2" 
                 BorderBrush="#CCCCCC" 
                 BorderThickness="1" 
                 Margin="0,0,0,12">
@@ -43,7 +73,7 @@
         </Border>
         
         <!-- 按钮 -->
-        <StackPanel Grid.Row="2" 
+        <StackPanel Grid.Row="3" 
                     Orientation="Horizontal" 
                     HorizontalAlignment="Right">
             <Button Content="OK" 
