@@ -152,7 +152,9 @@ namespace PrettyLogcat.ViewModels
 
         public string ConnectButtonText => IsConnected ? "Disconnect" : "Connect";
         public PackIconKind ConnectIconKind => IsConnected ? PackIconKind.LinkOff : PackIconKind.Link;
-        public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
+        public string ConnectionStatus => IsConnected && SelectedDevice != null 
+            ? $"Connected to {SelectedDevice.Name}" 
+            : "Disconnected";
 
         // Filter properties
         public bool ShowVerbose
@@ -194,20 +196,61 @@ namespace PrettyLogcat.ViewModels
         public string TagFilter
         {
             get => _filterService.TagFilter;
-            set => _filterService.TagFilter = value;
+            set 
+            { 
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    _filterService.AddToTagHistory(value);
+                    StatusMessage = $"Filtering by tag: {value}";
+                }
+                else if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(_filterService.TagFilter))
+                {
+                    StatusMessage = "Tag filter cleared - showing all tags";
+                }
+                _filterService.TagFilter = value;
+            }
         }
 
         public string MessageFilter
         {
             get => _filterService.MessageFilter;
-            set => _filterService.MessageFilter = value;
+            set 
+            { 
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    _filterService.AddToMessageHistory(value);
+                    StatusMessage = $"Filtering by message: {value}";
+                }
+                else if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(_filterService.MessageFilter))
+                {
+                    StatusMessage = "Message filter cleared - showing all messages";
+                }
+                _filterService.MessageFilter = value;
+            }
         }
 
         public string PidFilter
         {
             get => _filterService.PidFilter;
-            set => _filterService.PidFilter = value;
+            set 
+            { 
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    _filterService.AddToPidHistory(value);
+                    StatusMessage = $"Filtering by PID: {value}";
+                }
+                else if (string.IsNullOrWhiteSpace(value) && !string.IsNullOrWhiteSpace(_filterService.PidFilter))
+                {
+                    StatusMessage = "PID filter cleared - showing all PIDs";
+                }
+                _filterService.PidFilter = value;
+            }
         }
+        
+        // Filter history properties
+        public IEnumerable<string> TagFilterHistory => _filterService.TagFilterHistory;
+        public IEnumerable<string> MessageFilterHistory => _filterService.MessageFilterHistory;
+        public IEnumerable<string> PidFilterHistory => _filterService.PidFilterHistory;
 
         public int TotalLogCount => _allLogs.Count;
         public int FilteredLogCount => _filteredLogs.Count;
@@ -294,7 +337,7 @@ namespace PrettyLogcat.ViewModels
 
         private bool CanExecuteConnect()
         {
-            return SelectedDevice != null && SelectedDevice.IsOnline;
+            return SelectedDevice != null && SelectedDevice.IsOnline && !IsLoading;
         }
 
         private async Task ExecuteConnectCommand()

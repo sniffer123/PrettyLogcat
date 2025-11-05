@@ -27,6 +27,7 @@
                     <ComboBox ItemsSource="{Binding Devices}" 
                               SelectedItem="{Binding SelectedDevice}"
                               DisplayMemberPath="Name"
+                              IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBooleanConverter}}"
                               Width="200" Margin="0,0,16,0"/>
                     
                     <!-- Connect/Disconnect Button -->
@@ -80,60 +81,24 @@
                         <TextBlock Text="Filters" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                         
                         <!-- Tag Filter -->
-                        <TextBox Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,8">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="4">
-                                                    <ScrollViewer x:Name="PART_ContentHost"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
+                        <ComboBox Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  ItemsSource="{Binding TagFilterHistory}"
+                                  IsEditable="True"
+                                  Margin="0,0,0,8"/>
                         <TextBlock Text="Filter by Tag" FontSize="10" Foreground="Gray" Margin="0,-6,0,8"/>
                         
                         <!-- Message Filter -->
-                        <TextBox Text="{Binding MessageFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,8">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="4">
-                                                    <ScrollViewer x:Name="PART_ContentHost"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
+                        <ComboBox Text="{Binding MessageFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  ItemsSource="{Binding MessageFilterHistory}"
+                                  IsEditable="True"
+                                  Margin="0,0,0,8"/>
                         <TextBlock Text="Filter by Message" FontSize="10" Foreground="Gray" Margin="0,-6,0,8"/>
                         
                         <!-- PID Filter -->
-                        <TextBox Text="{Binding PidFilter, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,16">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="4">
-                                                    <ScrollViewer x:Name="PART_ContentHost"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
+                        <ComboBox Text="{Binding PidFilter, UpdateSourceTrigger=PropertyChanged}"
+                                  ItemsSource="{Binding PidFilterHistory}"
+                                  IsEditable="True"
+                                  Margin="0,0,0,16"/>
                         <TextBlock Text="Filter by PID" FontSize="10" Foreground="Gray" Margin="0,-14,0,16"/>
 
                         <!-- Control Buttons -->
@@ -215,11 +180,23 @@
                             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
                                 <ToggleButton IsChecked="{Binding AutoScroll}" 
                                               Background="#E0E0E0"
-                                              Content="⬇️"
-                                              Margin="0,0,8,0"/>
+                                              Padding="8,4"
+                                              Margin="0,0,8,0"
+                                              ToolTip="Auto scroll to bottom when new logs arrive">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="⬇️" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Auto Scroll"/>
+                                    </StackPanel>
+                                </ToggleButton>
                                 <ToggleButton IsChecked="{Binding WordWrap}" 
                                               Background="#E0E0E0"
-                                              Content="🔤"/>
+                                              Padding="8,4"
+                                              ToolTip="Enable word wrap for long log messages">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="🔤" Margin="0,0,4,0"/>
+                                        <TextBlock Text="Word Wrap"/>
+                                    </StackPanel>
+                                </ToggleButton>
                             </StackPanel>
                         </DockPanel>
                     </Border>

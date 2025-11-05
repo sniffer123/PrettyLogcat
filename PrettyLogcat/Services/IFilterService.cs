@@ -16,6 +16,15 @@ namespace PrettyLogcat.Services
         string TagFilter { get; set; }
         string MessageFilter { get; set; }
         string PidFilter { get; set; }
+        
+        // Search history
+        IEnumerable<string> TagFilterHistory { get; }
+        IEnumerable<string> MessageFilterHistory { get; }
+        IEnumerable<string> PidFilterHistory { get; }
+        
+        void AddToTagHistory(string filter);
+        void AddToMessageHistory(string filter);
+        void AddToPidHistory(string filter);
 
         bool ShouldIncludeLogEntry(LogEntry logEntry);
         IEnumerable<LogEntry> FilterLogEntries(IEnumerable<LogEntry> logEntries);

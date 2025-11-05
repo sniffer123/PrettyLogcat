@@ -16,6 +16,12 @@ namespace PrettyLogcat.Services
         private string _tagFilter = string.Empty;
         private string _messageFilter = string.Empty;
         private string _pidFilter = string.Empty;
+        
+        // Search history (最多保存20个历史记录)
+        private readonly List<string> _tagFilterHistory = new();
+        private readonly List<string> _messageFilterHistory = new();
+        private readonly List<string> _pidFilterHistory = new();
+        private const int MaxHistoryCount = 20;
 
         public bool ShowVerbose
         {
@@ -102,8 +108,14 @@ namespace PrettyLogcat.Services
             {
                 if (_tagFilter != value)
                 {
+                    var oldValue = _tagFilter;
                     _tagFilter = value ?? string.Empty;
-                    OnFiltersChanged();
+                    
+                    // 只有在非空值之间切换时才触发过滤更新
+                    if (!string.IsNullOrWhiteSpace(oldValue) || !string.IsNullOrWhiteSpace(_tagFilter))
+                    {
+                        OnFiltersChanged();
+                    }
                 }
             }
         }
@@ -115,8 +127,14 @@ namespace PrettyLogcat.Services
             {
                 if (_messageFilter != value)
                 {
+                    var oldValue = _messageFilter;
                     _messageFilter = value ?? string.Empty;
-                    OnFiltersChanged();
+                    
+                    // 只有在非空值之间切换时才触发过滤更新
+                    if (!string.IsNullOrWhiteSpace(oldValue) || !string.IsNullOrWhiteSpace(_messageFilter))
+                    {
+                        OnFiltersChanged();
+                    }
                 }
             }
         }
@@ -128,9 +146,53 @@ namespace PrettyLogcat.Services
             {
                 if (_pidFilter != value)
                 {
+                    var oldValue = _pidFilter;
                     _pidFilter = value ?? string.Empty;
-                    OnFiltersChanged();
+                    
+                    // 只有在非空值之间切换时才触发过滤更新
+                    if (!string.IsNullOrWhiteSpace(oldValue) || !string.IsNullOrWhiteSpace(_pidFilter))
+                    {
+                        OnFiltersChanged();
+                    }
                 }
+            }
+        }
+        
+        // Search history properties
+        public IEnumerable<string> TagFilterHistory => _tagFilterHistory.AsReadOnly();
+        public IEnumerable<string> MessageFilterHistory => _messageFilterHistory.AsReadOnly();
+        public IEnumerable<string> PidFilterHistory => _pidFilterHistory.AsReadOnly();
+        
+        public void AddToTagHistory(string filter)
+        {
+            AddToHistory(_tagFilterHistory, filter);
+        }
+        
+        public void AddToMessageHistory(string filter)
+        {
+            AddToHistory(_messageFilterHistory, filter);
+        }
+        
+        public void AddToPidHistory(string filter)
+        {
+            AddToHistory(_pidFilterHistory, filter);
+        }
+        
+        private void AddToHistory(List<string> history, string filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter))
+                return;
+                
+            // Remove if already exists
+            history.Remove(filter);
+            
+            // Add to beginning
+            history.Insert(0, filter);
+            
+            // Keep only MaxHistoryCount items
+            if (history.Count > MaxHistoryCount)
+            {
+                history.RemoveRange(MaxHistoryCount, history.Count - MaxHistoryCount);
             }
         }
 
