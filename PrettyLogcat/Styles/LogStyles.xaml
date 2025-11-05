@@ -1,0 +1,82 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+                    xmlns:converters="clr-namespace:PrettyLogcat.Converters">
+
+    <!-- Converters -->
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    
+    <!-- Custom Converter for TextWrapping -->
+    <converters:BoolToTextWrappingConverter x:Key="BoolToTextWrappingConverter"/>
+
+    <!-- Log ListView Style -->
+    <Style x:Key="LogListViewStyle" TargetType="ListView" BasedOn="{StaticResource MaterialDesignListView}">
+        <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Background" Value="{DynamicResource MaterialDesignPaper}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="SelectionMode" Value="Extended"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="ScrollViewer.PanningMode" Value="Both"/>
+        <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+        <Style.Triggers>
+            <Trigger Property="IsGrouping" Value="true">
+                <Setter Property="ScrollViewer.CanContentScroll" Value="false"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Log Item Container Style -->
+    <Style x:Key="LogListViewItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource MaterialDesignListViewItem}">
+        <Setter Property="Padding" Value="4,2"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{DynamicResource MaterialDesignSelection}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{DynamicResource MaterialDesignDivider}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- GridView Column Header Style -->
+    <Style x:Key="LogGridViewColumnHeaderStyle" TargetType="GridViewColumnHeader" BasedOn="{StaticResource MaterialDesignGridViewColumnHeader}">
+        <Setter Property="Background" Value="{DynamicResource MaterialDesignToolBarBackground}"/>
+        <Setter Property="Foreground" Value="{DynamicResource MaterialDesignBody}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource MaterialDesignDivider}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        <Setter Property="Padding" Value="8,4"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+    </Style>
+
+    <!-- Log Level Styles -->
+    <Style x:Key="VerboseLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource VerboseBrush}"/>
+    </Style>
+    
+    <Style x:Key="DebugLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource DebugBrush}"/>
+    </Style>
+    
+    <Style x:Key="InfoLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource InfoBrush}"/>
+    </Style>
+    
+    <Style x:Key="WarnLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource WarnBrush}"/>
+    </Style>
+    
+    <Style x:Key="ErrorLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+    </Style>
+    
+    <Style x:Key="FatalLogStyle" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource FatalBrush}"/>
+    </Style>
+
+</ResourceDictionary>
