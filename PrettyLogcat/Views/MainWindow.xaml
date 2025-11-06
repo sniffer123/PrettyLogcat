@@ -120,9 +120,11 @@
                             
                             <!-- 包名选择按钮 -->
                             <Button Grid.Column="1" 
-                                    Content="📱" 
+                                    Content="📱📋" 
                                     Width="30" 
                                     Height="22"
+                                    FontSize="10"
+                                    Padding="2"
                                     ToolTip="Select PID by Package Name"
                                     Click="SelectPidByPackage_Click"/>
                         </Grid>
@@ -198,6 +200,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -219,8 +222,9 @@
                         </DockPanel>
                     </Border>
 
-                    <!-- Secondary Search -->
-                    <Border Grid.Row="1" Background="#FAFAFA" Padding="8" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                    <!-- Secondary Search (Hidden for now) -->
+                    <Border Grid.Row="1" Background="#FAFAFA" Padding="8" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0"
+                            Visibility="Collapsed">
                         <DockPanel>
                             <TextBlock Text="Secondary Search:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="Medium"/>
                             <Button DockPanel.Dock="Right" 
@@ -240,41 +244,44 @@
                     </Border>
 
                     <!-- Pinned Logs -->
-                    <Border Grid.Row="2" Background="#F9FFF9" Padding="0" 
+                    <Border Grid.Row="2" Background="#F0F4F8" Padding="0" 
                             Visibility="{Binding PinnedLogs.Count, Converter={StaticResource CountToVisibilityConverter}}"
-                            BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                            BorderThickness="2" BorderBrush="#2196F3" CornerRadius="4" Margin="4">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
-                            <!-- Expandable Header -->
-                            <Border Grid.Row="0" Background="#F0F8F0" Padding="8,4" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
+                            <!-- Expandable Header (Clickable entire area) -->
+                            <Border Grid.Row="0" Background="#2196F3" Padding="8,6" 
+                                    MouseLeftButtonDown="PinnedLogsHeader_MouseLeftButtonDown"
+                                    Cursor="Hand" CornerRadius="2,2,0,0">
                                 <DockPanel>
-                                    <Button x:Name="PinnedLogsToggleButton" 
-                                            DockPanel.Dock="Left"
-                                            Background="Transparent" 
-                                            BorderThickness="0"
-                                            Padding="2"
-                                            Margin="0,0,4,0"
-                                            Click="PinnedLogsToggle_Click"
-                                            ToolTip="Expand/Collapse Pinned Logs">
-                                        <TextBlock x:Name="PinnedLogsToggleIcon" Text="▼" FontSize="10" Foreground="#666"/>
-                                    </Button>
-                                    <TextBlock Text="📌 Pinned Logs" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PinnedLogsToggleIcon" 
+                                               Text="▼" 
+                                               FontSize="12" 
+                                               Foreground="White"
+                                               FontWeight="Bold"
+                                               DockPanel.Dock="Left"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock Text="📌 Pinned Logs" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" Foreground="White"/>
                                     <TextBlock Text="{Binding PinnedLogs.Count, StringFormat='({0})'}" 
-                                               FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                               FontSize="11" Foreground="#E3F2FD" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                 </DockPanel>
                             </Border>
+                            
+                            <!-- Separator Line -->
+                            <Rectangle Grid.Row="1" Height="2" Fill="#1976D2" HorizontalAlignment="Stretch"/>
                             
                             <!-- Pinned Logs DataGrid with ScrollViewer -->
                             <ScrollViewer Grid.Row="1" 
                                           x:Name="PinnedLogsScrollViewer"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled"
-                                          Background="White"
-                                          MaxHeight="200">
+                                          Background="#FAFBFC"
+                                          MaxHeight="200" Margin="0,2,0,0">
                                 <DataGrid x:Name="PinnedLogsDataGrid"
                                           ItemsSource="{Binding PinnedLogs}"
                                           AutoGenerateColumns="False"
@@ -288,11 +295,12 @@
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                           FontFamily="Consolas, Courier New, monospace"
-                                          FontSize="11"
-                                          Background="White"
-                                          AlternatingRowBackground="#FAFAFA"
+                          FontSize="11"
+                                          Background="#FAFBFC"
+                                          AlternatingRowBackground="#F0F4F8"
                                           HorizontalAlignment="Stretch"
-                                          VerticalAlignment="Top">
+                                          VerticalAlignment="Top"
+                                          BorderThickness="0">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="90"
                                                             Visibility="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
@@ -340,9 +348,13 @@
                         </Grid>
                     </Border>
 
+                    <!-- Separator between Pinned Logs and Main Logs -->
+                    <Border Grid.Row="3" Height="4" Background="#E1F5FE" 
+                            Visibility="{Binding PinnedLogs.Count, Converter={StaticResource CountToVisibilityConverter}}"/>
+                    
                     <!-- Log Content -->
                     <!-- Log Content with Floating Button -->
-                    <Grid Grid.Row="3">
+                    <Grid Grid.Row="4">
                         <!-- DataGrid -->
                         <DataGrid x:Name="LogDataGrid"
                                   ItemsSource="{Binding DisplayedLogs}"
@@ -359,6 +371,21 @@
                                   FontFamily="Consolas, Courier New, monospace"
                                   FontSize="12"
                                   ScrollViewer.ScrollChanged="LogDataGrid_ScrollChanged">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#FF1976D2"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#FFE3F2FD"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Copy" Command="{Binding CopyLogCommand}" CommandParameter="{Binding SelectedLogEntry}">
@@ -474,7 +501,7 @@
                     </Grid>
 
                     <!-- Welcome/Status Overlay -->
-                    <Border Grid.Row="3" 
+                    <Border Grid.Row="4" 
                             Background="White"
                             Visibility="{Binding ShowWelcomeMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">

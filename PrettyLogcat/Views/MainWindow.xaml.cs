@@ -423,6 +423,16 @@ namespace PrettyLogcat.Views
 
         private void PinnedLogsToggle_Click(object sender, RoutedEventArgs e)
         {
+            TogglePinnedLogs();
+        }
+
+        private void PinnedLogsHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            TogglePinnedLogs();
+        }
+
+        private void TogglePinnedLogs()
+        {
             try
             {
                 var scrollViewer = PinnedLogsScrollViewer;
