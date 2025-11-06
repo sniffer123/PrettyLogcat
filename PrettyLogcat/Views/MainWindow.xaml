@@ -25,9 +25,9 @@
         </Grid.RowDefinitions>
 
         <!-- Menu Bar -->
-        <Menu Grid.Row="0" Background="#37474F" Foreground="White">
+        <Menu Grid.Row="0" Background="White" Foreground="Black" FontFamily="Microsoft YaHei UI, Segoe UI, Arial" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
             <!-- File Menu -->
-            <MenuItem Header="_File" Foreground="White">
+            <MenuItem Header="_File" Foreground="Black">
                 <MenuItem Header="_Open Log File..." Command="{Binding OpenFileCommand}">
                     <MenuItem.Icon>
                         <TextBlock Text="📂" FontSize="14"/>
@@ -47,7 +47,7 @@
             </MenuItem>
             
             <!-- ADB Menu -->
-            <MenuItem Header="_ADB" Foreground="White">
+            <MenuItem Header="_ADB" Foreground="Black">
                 <MenuItem Header="_Restart ADB Server" Click="RestartAdbMenuItem_Click">
                     <MenuItem.Icon>
                         <TextBlock Text="🔄" FontSize="14"/>
@@ -73,7 +73,7 @@
             </MenuItem>
             
             <!-- Help Menu -->
-            <MenuItem Header="_Help" Foreground="White">
+            <MenuItem Header="_Help" Foreground="Black">
                 <MenuItem Header="_About PrettyLogcat" Click="AboutMenuItem_Click">
                     <MenuItem.Icon>
                         <TextBlock Text="ℹ️" FontSize="14"/>
