@@ -19,12 +19,76 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- Menu Bar -->
+        <Menu Grid.Row="0" Background="#37474F" Foreground="White">
+            <!-- File Menu -->
+            <MenuItem Header="_File" Foreground="White">
+                <MenuItem Header="_Open Log File..." Command="{Binding OpenFileCommand}">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📂" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_Save Logs..." Command="{Binding SaveLogsCommand}">
+                    <MenuItem.Icon>
+                        <TextBlock Text="💾" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="E_xit" Click="ExitMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🚪" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            
+            <!-- ADB Menu -->
+            <MenuItem Header="_ADB" Foreground="White">
+                <MenuItem Header="_Restart ADB Server" Click="RestartAdbMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="🔄" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Connect _MuMu Emulator (127.0.0.1:16416)" Click="ConnectMuMuMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📱" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Connect _LDPlayer (127.0.0.1:5555)" Click="ConnectLDPlayerMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📱" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Header="Quick _Screenshot" Click="QuickScreenshotMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📸" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            
+            <!-- Help Menu -->
+            <MenuItem Header="_Help" Foreground="White">
+                <MenuItem Header="_About PrettyLogcat" Click="AboutMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="ℹ️" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="_User Guide" Click="UserGuideMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="📖" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+        </Menu>
+
         <!-- Toolbar -->
-        <Border Grid.Row="0" Background="#2196F3" Padding="16">
+        <Border Grid.Row="1" Background="#2196F3" Padding="16">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                     <TextBlock Text="📱" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White"/>
@@ -62,7 +126,7 @@
         </Border>
 
         <!-- Main Content -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="300" MinWidth="250"/>
                 <ColumnDefinition Width="5"/>
@@ -138,27 +202,6 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🗑️" Margin="0,0,4,0"/>
                                 <TextBlock Text="Clear Logs"/>
-                            </StackPanel>
-                        </Button>
-                        
-                        <Button Command="{Binding SaveLogsCommand}" 
-                                Background="#2196F3"
-                                Foreground="White"
-                                Padding="12,6"
-                                Margin="0,0,0,8">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="💾" Margin="0,0,4,0"/>
-                                <TextBlock Text="Save Logs"/>
-                            </StackPanel>
-                        </Button>
-                        
-                        <Button Command="{Binding OpenFileCommand}" 
-                                Background="#FF9800"
-                                Foreground="White"
-                                Padding="12,6">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="📂" Margin="0,0,4,0"/>
-                                <TextBlock Text="Open File"/>
                             </StackPanel>
                         </Button>
 
@@ -518,7 +561,7 @@
         </Grid>
 
         <!-- Status Bar -->
-        <Border Grid.Row="2" Background="#37474F" Padding="8">
+        <Border Grid.Row="3" Background="#37474F" Padding="8">
             <DockPanel>
                 <TextBlock Text="{Binding StatusMessage}" DockPanel.Dock="Left" Foreground="White"/>
                 <ProgressBar IsIndeterminate="{Binding IsLoading}" 

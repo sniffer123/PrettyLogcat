@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Linq;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace PrettyLogcat.Views
 {
@@ -475,5 +477,259 @@ namespace PrettyLogcat.Views
             }
             base.OnClosed(e);
         }
+
+        #region Menu Event Handlers
+
+        private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        private async void RestartAdbMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.StatusMessage = "Restarting ADB server...";
+                }
+
+                // Kill ADB processes
+                var killProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = "/f /im adb.exe",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+                killProcess.Start();
+                await killProcess.WaitForExitAsync();
+
+                // Start ADB server
+                var startProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "adb",
+                        Arguments = "start-server",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+                startProcess.Start();
+                await startProcess.WaitForExitAsync();
+
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.StatusMessage = "ADB server restarted successfully";
+                    // Refresh devices after restart
+                    if (vm.RefreshDevicesCommand.CanExecute(null))
+                    {
+                        vm.RefreshDevicesCommand.Execute(null);
+                    }
+                }
+
+                MessageBox.Show("ADB server has been restarted successfully.", "ADB Restart", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.StatusMessage = $"Failed to restart ADB: {ex.Message}";
+                }
+                MessageBox.Show($"Failed to restart ADB server: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void ConnectMuMuMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            await ConnectToEmulator("127.0.0.1:16416", "MuMu Emulator");
+        }
+
+        private async void ConnectLDPlayerMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            await ConnectToEmulator("127.0.0.1:5555", "LDPlayer");
+        }
+
+        private async Task ConnectToEmulator(string address, string emulatorName)
+        {
+            try
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    viewModel.StatusMessage = $"Connecting to {emulatorName}...";
+                }
+
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "adb",
+                        Arguments = $"connect {address}",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+                process.Start();
+                string output = await process.StandardOutput.ReadToEndAsync();
+                await process.WaitForExitAsync();
+
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.StatusMessage = $"Connected to {emulatorName}";
+                    // Refresh devices after connection
+                    if (vm.RefreshDevicesCommand.CanExecute(null))
+                    {
+                        vm.RefreshDevicesCommand.Execute(null);
+                    }
+                }
+
+                MessageBox.Show($"Connection result: {output}", $"Connect to {emulatorName}", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.StatusMessage = $"Failed to connect to {emulatorName}: {ex.Message}";
+                }
+                MessageBox.Show($"Failed to connect to {emulatorName}: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void QuickScreenshotMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    if (viewModel.SelectedDevice == null || !viewModel.IsConnected)
+                    {
+                        MessageBox.Show("Please connect to a device first.", "No Device Connected", 
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    viewModel.StatusMessage = "Taking screenshot...";
+                }
+
+                // Take screenshot using ADB
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "adb",
+                        Arguments = "exec-out screencap -p",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        CreateNoWindow = true
+                    }
+                };
+                process.Start();
+                
+                var imageData = new System.IO.MemoryStream();
+                await process.StandardOutput.BaseStream.CopyToAsync(imageData);
+                await process.WaitForExitAsync();
+
+                if (imageData.Length > 0)
+                {
+                    // Convert to bitmap and copy to clipboard
+                    imageData.Position = 0;
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.StreamSource = imageData;
+                    bitmap.EndInit();
+                    
+                    Clipboard.SetImage(bitmap);
+                    
+                    if (DataContext is MainViewModel vm)
+                    {
+                        vm.StatusMessage = "Screenshot copied to clipboard";
+                    }
+                    
+                    MessageBox.Show("Screenshot has been copied to clipboard!", "Screenshot Complete", 
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    throw new Exception("No screenshot data received");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.StatusMessage = $"Screenshot failed: {ex.Message}";
+                }
+                MessageBox.Show($"Failed to take screenshot: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var aboutMessage = @"PrettyLogcat - Android Logcat Viewer
+
+Version: 1.0.0
+Author: zkhuang
+
+A modern, feature-rich Android logcat viewer with:
+• Real-time log filtering and search
+• Multiple device support
+• Log level color coding
+• Pin important logs
+• Export and import functionality
+• ADB integration tools
+
+© 2024 All rights reserved.";
+
+            MessageBox.Show(aboutMessage, "About PrettyLogcat", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void UserGuideMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            var guideMessage = @"PrettyLogcat User Guide
+
+Getting Started:
+1. Connect your Android device or start an emulator
+2. Click 'Connect' to start viewing logs
+3. Use filters to narrow down log entries
+
+Key Features:
+• Log Levels: Filter by Verbose, Debug, Info, Warning, Error, Fatal
+• Text Filters: Search by message content, tag, or PID
+• Pin Logs: Right-click any log entry to pin it for quick reference
+• Column Visibility: Right-click column headers to show/hide columns
+• Auto Scroll: Toggle automatic scrolling to latest logs
+
+ADB Tools:
+• Restart ADB Server: Fix connection issues
+• Connect Emulators: Quick connect to MuMu/LDPlayer
+• Quick Screenshot: Capture device screen to clipboard
+
+Tips:
+• Use Ctrl+C to copy selected log entries
+• Double-click pinned logs to jump to them in main list
+• Save logs to file for later analysis";
+
+            MessageBox.Show(guideMessage, "User Guide", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
     }
 }
