@@ -249,92 +249,116 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
-                            <!-- Compact Header -->
+                            <!-- Expandable Header -->
                             <Border Grid.Row="0" Background="#F0F8F0" Padding="8,4" BorderThickness="0,0,0,1" BorderBrush="#E0E0E0">
                                 <DockPanel>
+                                    <Button x:Name="PinnedLogsToggleButton" 
+                                            DockPanel.Dock="Left"
+                                            Background="Transparent" 
+                                            BorderThickness="0"
+                                            Padding="2"
+                                            Margin="0,0,4,0"
+                                            Click="PinnedLogsToggle_Click"
+                                            ToolTip="Expand/Collapse Pinned Logs">
+                                        <TextBlock x:Name="PinnedLogsToggleIcon" Text="▼" FontSize="10" Foreground="#666"/>
+                                    </Button>
                                     <TextBlock Text="📌 Pinned Logs" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding PinnedLogs.Count, StringFormat='({0})'}" 
                                                FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </DockPanel>
                             </Border>
                             
-                            <!-- Pinned Logs DataGrid -->
-                            <DataGrid Grid.Row="1" 
-                                      ItemsSource="{Binding PinnedLogs}"
-                                      MaxHeight="150"
-                                      AutoGenerateColumns="False"
-                                      IsReadOnly="True"
-                                      GridLinesVisibility="Horizontal"
-                                      HeadersVisibility="None"
-                                      CanUserResizeColumns="False"
-                                      CanUserSortColumns="False"
-                                      VirtualizingPanel.IsVirtualizing="True"
-                                      VirtualizingPanel.VirtualizationMode="Recycling"
-                                      ScrollViewer.CanContentScroll="True"
-                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                      FontFamily="Consolas, Courier New, monospace"
-                                      FontSize="11"
-                                      Background="White"
-                                      AlternatingRowBackground="#FAFAFA">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="90"
-                                                        Visibility="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                    <DataGridTemplateColumn Width="50"
-                                                            Visibility="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Level}" 
-                                                           Foreground="{Binding LevelBrush}"
-                                                           FontWeight="Bold"
-                                                           HorizontalAlignment="Center"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Binding="{Binding Pid}" Width="50"
-                                                        Visibility="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                    <DataGridTextColumn Binding="{Binding Tid}" Width="50"
-                                                        Visibility="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                    <DataGridTextColumn Binding="{Binding Tag}" Width="100"
-                                                        Visibility="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                    <DataGridTemplateColumn Width="*"
-                                                            Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding Message}" 
-                                                           Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
-                                                           TextTrimming="CharacterEllipsis"
-                                                           ToolTip="{Binding Message}"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                                <DataGrid.RowStyle>
-                                    <Style TargetType="DataGridRow">
-                                        <EventSetter Event="MouseDoubleClick" Handler="PinnedLogItem_MouseDoubleClick"/>
-                                        <Setter Property="Height" Value="20"/>
-                                    </Style>
-                                </DataGrid.RowStyle>
-                            </DataGrid>
+                            <!-- Pinned Logs DataGrid with ScrollViewer -->
+                            <ScrollViewer Grid.Row="1" 
+                                          x:Name="PinnedLogsScrollViewer"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Background="White"
+                                          MaxHeight="200">
+                                <DataGrid x:Name="PinnedLogsDataGrid"
+                                          ItemsSource="{Binding PinnedLogs}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          GridLinesVisibility="Horizontal"
+                                          HeadersVisibility="None"
+                                          CanUserResizeColumns="False"
+                                          CanUserSortColumns="False"
+                                          VirtualizingPanel.IsVirtualizing="False"
+                                          ScrollViewer.CanContentScroll="False"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                          FontFamily="Consolas, Courier New, monospace"
+                                          FontSize="11"
+                                          Background="White"
+                                          AlternatingRowBackground="#FAFAFA"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Top">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Binding="{Binding TimeStamp, StringFormat=HH:mm:ss.fff}" Width="90"
+                                                            Visibility="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <DataGridTemplateColumn Width="50"
+                                                                Visibility="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Level}" 
+                                                               Foreground="{Binding LevelBrush}"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Binding="{Binding Pid}" Width="50"
+                                                            Visibility="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <DataGridTextColumn Binding="{Binding Tid}" Width="50"
+                                                            Visibility="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <DataGridTextColumn Binding="{Binding Tag}" Width="100"
+                                                            Visibility="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <DataGridTemplateColumn Width="*"
+                                                                Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Message}" 
+                                                               Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding Message}"
+                                                               VerticalAlignment="Center"
+                                                               Padding="2,1"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <EventSetter Event="MouseDoubleClick" Handler="PinnedLogItem_MouseDoubleClick"/>
+                                            <Setter Property="MinHeight" Value="22"/>
+                                            <Setter Property="Padding" Value="2,1"/>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                </DataGrid>
+                            </ScrollViewer>
                         </Grid>
                     </Border>
 
                     <!-- Log Content -->
-                    <DataGrid Grid.Row="3" 
-                              x:Name="LogDataGrid"
-                              ItemsSource="{Binding DisplayedLogs}"
-                              SelectedItem="{Binding SelectedLogEntry}"
-                              AutoGenerateColumns="False"
-                              IsReadOnly="True"
-                              GridLinesVisibility="Horizontal"
-                              HeadersVisibility="Column"
-                              CanUserResizeColumns="True"
-                              CanUserSortColumns="True"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling"
-                              ScrollViewer.CanContentScroll="True"
-                              FontFamily="Consolas, Courier New, monospace"
-                              FontSize="12">
+                    <!-- Log Content with Floating Button -->
+                    <Grid Grid.Row="3">
+                        <!-- DataGrid -->
+                        <DataGrid x:Name="LogDataGrid"
+                                  ItemsSource="{Binding DisplayedLogs}"
+                                  SelectedItem="{Binding SelectedLogEntry}"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  GridLinesVisibility="Horizontal"
+                                  HeadersVisibility="Column"
+                                  CanUserResizeColumns="True"
+                                  CanUserSortColumns="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True"
+                                  FontFamily="Consolas, Courier New, monospace"
+                                  FontSize="12"
+                                  ScrollViewer.ScrollChanged="LogDataGrid_ScrollChanged">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Copy" Command="{Binding CopyLogCommand}" CommandParameter="{Binding SelectedLogEntry}">
@@ -356,17 +380,18 @@
                         </DataGrid.ContextMenu>
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
+                                <EventSetter Event="ContextMenuOpening" Handler="ColumnHeader_ContextMenuOpening"/>
                                 <Setter Property="ContextMenu">
                                     <Setter.Value>
-                                        <ContextMenu>
+                                        <ContextMenu x:Name="ColumnHeaderContextMenu">
                                             <MenuItem Header="Show/Hide Columns" IsEnabled="False" FontWeight="Bold"/>
                                             <Separator/>
-                                            <MenuItem Header="Time" IsCheckable="True" IsChecked="{Binding DataContext.ShowTimeColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <MenuItem Header="Level" IsCheckable="True" IsChecked="{Binding DataContext.ShowLevelColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <MenuItem Header="PID" IsCheckable="True" IsChecked="{Binding DataContext.ShowPidColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <MenuItem Header="TID" IsCheckable="True" IsChecked="{Binding DataContext.ShowTidColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <MenuItem Header="Tag" IsCheckable="True" IsChecked="{Binding DataContext.ShowTagColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <MenuItem Header="Message" IsCheckable="True" IsChecked="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <MenuItem Header="Time" IsCheckable="True" x:Name="TimeColumnMenuItem"/>
+                                            <MenuItem Header="Level" IsCheckable="True" x:Name="LevelColumnMenuItem"/>
+                                            <MenuItem Header="PID" IsCheckable="True" x:Name="PidColumnMenuItem"/>
+                                            <MenuItem Header="TID" IsCheckable="True" x:Name="TidColumnMenuItem"/>
+                                            <MenuItem Header="Tag" IsCheckable="True" x:Name="TagColumnMenuItem"/>
+                                            <MenuItem Header="Message" IsCheckable="True" x:Name="MessageColumnMenuItem"/>
                                         </ContextMenu>
                                     </Setter.Value>
                                 </Setter>
@@ -404,7 +429,49 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
-                    </DataGrid>
+                        </DataGrid>
+                        
+                        <!-- Floating Scroll to Bottom Button -->
+                        <Button x:Name="ScrollToBottomButton"
+                                Command="{Binding ScrollToBottomCommand}"
+                                Visibility="{Binding ShowScrollToBottomButton, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,20,20"
+                                Width="50"
+                                Height="50"
+                                Background="#2196F3"
+                                Foreground="White"
+                                BorderThickness="0"
+                                ToolTip="Scroll to bottom and enable auto-scroll"
+                                Style="{x:Null}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border Background="{TemplateBinding Background}"
+                                            CornerRadius="25"
+                                            BorderBrush="#1976D2"
+                                            BorderThickness="2">
+                                        <Border.Effect>
+                                            <DropShadowEffect Color="Black" Direction="315" ShadowDepth="2" Opacity="0.3"/>
+                                        </Border.Effect>
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#1976D2"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter Property="Background" Value="#0D47A1"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                            <StackPanel>
+                                <TextBlock Text="⬇" FontSize="20" HorizontalAlignment="Center"/>
+                                <TextBlock Text="🔄" FontSize="12" HorizontalAlignment="Center" Margin="0,-5,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
                     <!-- Welcome/Status Overlay -->
                     <Border Grid.Row="3" 

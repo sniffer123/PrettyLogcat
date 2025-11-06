@@ -8,6 +8,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PrettyLogcat.Services
 {
@@ -26,6 +27,8 @@ namespace PrettyLogcat.Services
         // 用于处理多行日志的缓存
         private LogEntry? _pendingLogEntry;
         private readonly object _logProcessingLock = new();
+        private Timer? _pendingLogTimer;
+        private const int LogMergeDelayMs = 100; // 0.1秒延迟
 
         public IObservable<LogEntry> LogEntries => _logEntriesSubject.AsObservable();
 
@@ -53,11 +56,7 @@ namespace PrettyLogcat.Services
                         // 处理最后一个待处理的日志条目
                         lock (_logProcessingLock)
                         {
-                            if (_pendingLogEntry != null)
-                            {
-                                _logEntriesSubject.OnNext(_pendingLogEntry);
-                                _pendingLogEntry = null;
-                            }
+                            FlushPendingLogEntry();
                         }
                         _logger.LogInformation("Logcat stream completed");
                         _logEntriesSubject.OnCompleted();
@@ -74,11 +73,7 @@ namespace PrettyLogcat.Services
             // 清理待处理的日志条目
             lock (_logProcessingLock)
             {
-                if (_pendingLogEntry != null)
-                {
-                    _logEntriesSubject.OnNext(_pendingLogEntry);
-                    _pendingLogEntry = null;
-                }
+                FlushPendingLogEntry();
             }
             
             _logger.LogInformation("Stopped logcat service");
@@ -97,27 +92,33 @@ namespace PrettyLogcat.Services
                 {
                     // 这是一个新的日志条目
                     // 如果有待处理的日志条目，先发送它
-                    if (_pendingLogEntry != null)
-                    {
-                        _logEntriesSubject.OnNext(_pendingLogEntry);
-                    }
+                    FlushPendingLogEntry();
                     
                     // 创建新的日志条目
                     _pendingLogEntry = ParseLogLine(line);
+                    
+                    // 启动定时器，0.1秒后发送日志条目（如果没有续行的话）
+                    StartPendingLogTimer();
                 }
                 else
                 {
                     // 这是一个续行，添加到当前待处理的日志条目中
                     if (_pendingLogEntry != null)
                     {
+                        // 取消定时器，因为有续行
+                        CancelPendingLogTimer();
+                        
                         // 将续行内容添加到消息中，保持换行格式
                         _pendingLogEntry.Message += Environment.NewLine + line.Trim();
                         _pendingLogEntry.RawLine += Environment.NewLine + line;
+                        
+                        // 重新启动定时器，等待可能的更多续行
+                        StartPendingLogTimer();
                     }
                     else
                     {
-                        // 如果没有待处理的日志条目，创建一个未知格式的条目
-                        _pendingLogEntry = new LogEntry
+                        // 如果没有待处理的日志条目，创建一个未知格式的条目并立即发送
+                        var unknownEntry = new LogEntry
                         {
                             TimeStamp = DateTime.Now,
                             Level = Models.LogLevel.Info,
@@ -127,9 +128,40 @@ namespace PrettyLogcat.Services
                             Message = line.Trim(),
                             RawLine = line
                         };
+                        _logEntriesSubject.OnNext(unknownEntry);
                     }
                 }
             }
+        }
+
+        private void StartPendingLogTimer()
+        {
+            CancelPendingLogTimer();
+            _pendingLogTimer = new Timer(OnPendingLogTimeout, null, LogMergeDelayMs, Timeout.Infinite);
+        }
+
+        private void CancelPendingLogTimer()
+        {
+            _pendingLogTimer?.Dispose();
+            _pendingLogTimer = null;
+        }
+
+        private void OnPendingLogTimeout(object? state)
+        {
+            lock (_logProcessingLock)
+            {
+                FlushPendingLogEntry();
+            }
+        }
+
+        private void FlushPendingLogEntry()
+        {
+            if (_pendingLogEntry != null)
+            {
+                _logEntriesSubject.OnNext(_pendingLogEntry);
+                _pendingLogEntry = null;
+            }
+            CancelPendingLogTimer();
         }
 
         public void ClearLogs()
@@ -279,6 +311,7 @@ namespace PrettyLogcat.Services
         public void Dispose()
         {
             StopLogcatStream();
+            CancelPendingLogTimer();
             _logEntriesSubject?.Dispose();
         }
     }

@@ -10,6 +10,7 @@ namespace PrettyLogcat
     public partial class App : Application
     {
         private ServiceProvider? _serviceProvider;
+        private MainViewModel? _mainViewModel;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -27,8 +28,8 @@ namespace PrettyLogcat
                 _serviceProvider = services.BuildServiceProvider();
 
                 // Start main window
-                var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
-                var mainWindow = new Views.MainWindow(viewModel);
+                _mainViewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+                var mainWindow = new Views.MainWindow(_mainViewModel);
                 mainWindow.Show();
             }
             catch (Exception ex)
@@ -53,6 +54,7 @@ namespace PrettyLogcat
             services.AddSingleton<ILogcatService, LogcatService>();
             services.AddSingleton<IFilterService, FilterService>();
             services.AddSingleton<IFileService, FileService>();
+            services.AddSingleton<ISettingsService, SettingsService>();
 
             // ViewModels
             services.AddTransient<MainViewModel>();
@@ -60,11 +62,15 @@ namespace PrettyLogcat
 
         private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
+            // 记录到控制台以便调试
+            Console.WriteLine($"Unhandled Exception: {e.ExceptionObject}");
             ShowError("Unhandled Exception", e.ExceptionObject as Exception);
         }
 
         private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            // 记录到控制台以便调试
+            Console.WriteLine($"UI Thread Exception: {e.Exception}");
             ShowError("UI Thread Exception", e.Exception);
             e.Handled = true;
         }
@@ -83,6 +89,16 @@ namespace PrettyLogcat
 
         protected override void OnExit(ExitEventArgs e)
         {
+            try
+            {
+                // Dispose MainViewModel first to save settings
+                _mainViewModel?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error disposing MainViewModel: {ex}");
+            }
+            
             _serviceProvider?.Dispose();
             base.OnExit(e);
         }

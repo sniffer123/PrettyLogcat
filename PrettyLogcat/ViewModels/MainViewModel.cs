@@ -22,6 +22,7 @@ namespace PrettyLogcat.ViewModels
         private readonly IFilterService _filterService;
         private readonly IFileService _fileService;
         private readonly IAdbService _adbService;
+        private readonly ISettingsService _settingsService;
 
         private readonly ObservableCollection<AndroidDevice> _devices = new();
         private readonly ObservableCollection<LogEntry> _allLogs = new();
@@ -37,23 +38,19 @@ namespace PrettyLogcat.ViewModels
         private bool _showWelcomeMessage = true;
         private bool _autoScroll = true;
         private bool _wordWrap = false;
+        private bool _showScrollToBottomButton = false;
         private string _secondarySearchText = string.Empty;
         private LogEntry? _selectedLogEntry;
         private CancellationTokenSource? _logcatCancellationTokenSource;
         private IDisposable? _logEntriesSubscription;
 
-        // Column visibility properties
-        private bool _showTimeColumn = true;
-        private bool _showLevelColumn = true;
-        private bool _showPidColumn = true;
-        private bool _showTidColumn = false;
-        private bool _showTagColumn = true;
-        private bool _showMessageColumn = true;
+        // Column visibility properties - will be loaded from settings
         
         // 日志缓存和批量更新相关
         private readonly Queue<LogEntry> _logEntryCache = new();
         private readonly object _cacheLock = new object();
         private Timer? _uiUpdateTimer;
+        private Timer? _pidPackageUpdateTimer;
         private bool _hasPendingUpdates = false;
 
         public ObservableCollection<AndroidDevice> Devices => _devices;
@@ -157,6 +154,19 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
+        public bool ShowScrollToBottomButton
+        {
+            get => _showScrollToBottomButton;
+            set
+            {
+                if (_showScrollToBottomButton != value)
+                {
+                    _showScrollToBottomButton = value;
+                    OnPropertyChanged(nameof(ShowScrollToBottomButton));
+                }
+            }
+        }
+
         public bool WordWrap
         {
             get => _wordWrap;
@@ -197,81 +207,99 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
-        // Column visibility properties
+        // Column visibility properties - use settings service
         public bool ShowTimeColumn
         {
-            get => _showTimeColumn;
+            get => _settingsService.ShowTimeColumn;
             set
             {
-                if (_showTimeColumn != value)
+                var oldValue = _settingsService.ShowTimeColumn;
+                if (oldValue != value)
                 {
-                    _showTimeColumn = value;
+                    _logger.LogDebug("ShowTimeColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowTimeColumn = value;
                     OnPropertyChanged(nameof(ShowTimeColumn));
+                    _logger.LogDebug("ShowTimeColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
 
         public bool ShowLevelColumn
         {
-            get => _showLevelColumn;
+            get => _settingsService.ShowLevelColumn;
             set
             {
-                if (_showLevelColumn != value)
+                var oldValue = _settingsService.ShowLevelColumn;
+                if (oldValue != value)
                 {
-                    _showLevelColumn = value;
+                    _logger.LogDebug("ShowLevelColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowLevelColumn = value;
                     OnPropertyChanged(nameof(ShowLevelColumn));
+                    _logger.LogDebug("ShowLevelColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
 
         public bool ShowPidColumn
         {
-            get => _showPidColumn;
+            get => _settingsService.ShowPidColumn;
             set
             {
-                if (_showPidColumn != value)
+                var oldValue = _settingsService.ShowPidColumn;
+                if (oldValue != value)
                 {
-                    _showPidColumn = value;
+                    _logger.LogDebug("ShowPidColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowPidColumn = value;
                     OnPropertyChanged(nameof(ShowPidColumn));
+                    _logger.LogDebug("ShowPidColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
 
         public bool ShowTidColumn
         {
-            get => _showTidColumn;
+            get => _settingsService.ShowTidColumn;
             set
             {
-                if (_showTidColumn != value)
+                var oldValue = _settingsService.ShowTidColumn;
+                if (oldValue != value)
                 {
-                    _showTidColumn = value;
+                    _logger.LogDebug("ShowTidColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowTidColumn = value;
                     OnPropertyChanged(nameof(ShowTidColumn));
+                    _logger.LogDebug("ShowTidColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
 
         public bool ShowTagColumn
         {
-            get => _showTagColumn;
+            get => _settingsService.ShowTagColumn;
             set
             {
-                if (_showTagColumn != value)
+                var oldValue = _settingsService.ShowTagColumn;
+                if (oldValue != value)
                 {
-                    _showTagColumn = value;
+                    _logger.LogDebug("ShowTagColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowTagColumn = value;
                     OnPropertyChanged(nameof(ShowTagColumn));
+                    _logger.LogDebug("ShowTagColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
 
         public bool ShowMessageColumn
         {
-            get => _showMessageColumn;
+            get => _settingsService.ShowMessageColumn;
             set
             {
-                if (_showMessageColumn != value)
+                var oldValue = _settingsService.ShowMessageColumn;
+                if (oldValue != value)
                 {
-                    _showMessageColumn = value;
+                    _logger.LogDebug("ShowMessageColumn changing from {OldValue} to {NewValue}", oldValue, value);
+                    _settingsService.ShowMessageColumn = value;
                     OnPropertyChanged(nameof(ShowMessageColumn));
+                    _logger.LogDebug("ShowMessageColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -280,68 +308,164 @@ namespace PrettyLogcat.ViewModels
         public PackIconKind ConnectIconKind => IsConnected ? PackIconKind.LinkOff : PackIconKind.Link;
         public string ConnectionStatus => IsConnected ? "Connected" : "Disconnected";
 
-        // Filter properties
+        // Filter properties - use settings service and sync with filter service
         public bool ShowVerbose
         {
-            get => _filterService.ShowVerbose;
-            set => _filterService.ShowVerbose = value;
+            get => _settingsService.ShowVerbose;
+            set 
+            { 
+                if (_settingsService.ShowVerbose != value)
+                {
+                    _settingsService.ShowVerbose = value;
+                    _filterService.ShowVerbose = value;
+                    OnPropertyChanged(nameof(ShowVerbose));
+                }
+            }
         }
 
         public bool ShowDebug
         {
-            get => _filterService.ShowDebug;
-            set => _filterService.ShowDebug = value;
+            get => _settingsService.ShowDebug;
+            set 
+            { 
+                if (_settingsService.ShowDebug != value)
+                {
+                    _settingsService.ShowDebug = value;
+                    _filterService.ShowDebug = value;
+                    OnPropertyChanged(nameof(ShowDebug));
+                }
+            }
         }
 
         public bool ShowInfo
         {
-            get => _filterService.ShowInfo;
-            set => _filterService.ShowInfo = value;
+            get => _settingsService.ShowInfo;
+            set 
+            { 
+                if (_settingsService.ShowInfo != value)
+                {
+                    _settingsService.ShowInfo = value;
+                    _filterService.ShowInfo = value;
+                    OnPropertyChanged(nameof(ShowInfo));
+                }
+            }
         }
 
         public bool ShowWarn
         {
-            get => _filterService.ShowWarn;
-            set => _filterService.ShowWarn = value;
+            get => _settingsService.ShowWarn;
+            set 
+            { 
+                if (_settingsService.ShowWarn != value)
+                {
+                    _settingsService.ShowWarn = value;
+                    _filterService.ShowWarn = value;
+                    OnPropertyChanged(nameof(ShowWarn));
+                }
+            }
         }
 
         public bool ShowError
         {
-            get => _filterService.ShowError;
-            set => _filterService.ShowError = value;
+            get => _settingsService.ShowError;
+            set 
+            { 
+                if (_settingsService.ShowError != value)
+                {
+                    _settingsService.ShowError = value;
+                    _filterService.ShowError = value;
+                    OnPropertyChanged(nameof(ShowError));
+                }
+            }
         }
 
         public bool ShowFatal
         {
-            get => _filterService.ShowFatal;
-            set => _filterService.ShowFatal = value;
+            get => _settingsService.ShowFatal;
+            set 
+            { 
+                if (_settingsService.ShowFatal != value)
+                {
+                    _settingsService.ShowFatal = value;
+                    _filterService.ShowFatal = value;
+                    OnPropertyChanged(nameof(ShowFatal));
+                }
+            }
         }
 
         public string TagFilter
         {
-            get => _filterService.TagFilter;
-            set => _filterService.TagFilter = value;
+            get => _settingsService.TagFilter;
+            set 
+            { 
+                var oldValue = _settingsService.TagFilter;
+                if (oldValue != value)
+                {
+                    _settingsService.TagFilter = value;
+                    _filterService.TagFilter = value;
+                    OnPropertyChanged(nameof(TagFilter));
+                    
+                    // Add to history when filter is applied (non-empty and different)
+                    if (!string.IsNullOrWhiteSpace(value) && value != oldValue)
+                    {
+                        _settingsService.AddToFilterHistory(Models.FilterType.Tag, value);
+                        OnPropertyChanged(nameof(TagFilterHistory));
+                    }
+                }
+            }
         }
 
         public string MessageFilter
         {
-            get => _filterService.MessageFilter;
-            set => _filterService.MessageFilter = value;
+            get => _settingsService.MessageFilter;
+            set 
+            { 
+                var oldValue = _settingsService.MessageFilter;
+                if (oldValue != value)
+                {
+                    _settingsService.MessageFilter = value;
+                    _filterService.MessageFilter = value;
+                    OnPropertyChanged(nameof(MessageFilter));
+                    
+                    // Add to history when filter is applied (non-empty and different)
+                    if (!string.IsNullOrWhiteSpace(value) && value != oldValue)
+                    {
+                        _settingsService.AddToFilterHistory(Models.FilterType.Message, value);
+                        OnPropertyChanged(nameof(MessageFilterHistory));
+                    }
+                }
+            }
         }
 
         public string PidFilter
         {
-            get => _filterService.PidFilter;
-            set => _filterService.PidFilter = value;
+            get => _settingsService.PidFilter;
+            set 
+            { 
+                var oldValue = _settingsService.PidFilter;
+                if (oldValue != value)
+                {
+                    _settingsService.PidFilter = value;
+                    _filterService.PidFilter = value;
+                    OnPropertyChanged(nameof(PidFilter));
+                    
+                    // Add to history when filter is applied (non-empty and different)
+                    if (!string.IsNullOrWhiteSpace(value) && value != oldValue)
+                    {
+                        _settingsService.AddToFilterHistory(Models.FilterType.Pid, value);
+                        OnPropertyChanged(nameof(PidFilterHistory));
+                    }
+                }
+            }
         }
 
         public int TotalLogCount => _allLogs.Count;
         public int FilteredLogCount => _filteredLogs.Count;
 
-        // 过滤器历史记录
-        public IEnumerable<string> MessageFilterHistory => _filterService.MessageFilterHistory;
-        public IEnumerable<string> TagFilterHistory => _filterService.TagFilterHistory;
-        public IEnumerable<string> PidFilterHistory => _filterService.PidFilterHistory;
+        // 过滤器历史记录 - use settings service
+        public IEnumerable<string> MessageFilterHistory => _settingsService.MessageFilterHistory;
+        public IEnumerable<string> TagFilterHistory => _settingsService.TagFilterHistory;
+        public IEnumerable<string> PidFilterHistory => _settingsService.PidFilterHistory;
         
         // PID包名选择
         public IEnumerable<PidPackageInfo> AvailablePidPackages => _filterService.AvailablePidPackages;
@@ -356,6 +480,7 @@ namespace PrettyLogcat.ViewModels
         public ICommand PinLogCommand { get; }
         public ICommand JumpToLogCommand { get; }
         public ICommand ClearSecondarySearchCommand { get; }
+        public ICommand ScrollToBottomCommand { get; }
 
         public MainViewModel(
             ILogger<MainViewModel> logger,
@@ -363,7 +488,8 @@ namespace PrettyLogcat.ViewModels
             ILogcatService logcatService,
             IFilterService filterService,
             IFileService fileService,
-            IAdbService adbService)
+            IAdbService adbService,
+            ISettingsService settingsService)
         {
             _logger = logger;
             _deviceService = deviceService;
@@ -371,6 +497,7 @@ namespace PrettyLogcat.ViewModels
             _filterService = filterService;
             _fileService = fileService;
             _adbService = adbService;
+            _settingsService = settingsService;
 
             // Initialize commands
             ConnectCommand = new RelayCommand(async () => await ExecuteConnectCommand(), CanExecuteConnect);
@@ -382,6 +509,7 @@ namespace PrettyLogcat.ViewModels
             PinLogCommand = new RelayCommand<LogEntry>(ExecutePinLogCommand);
             JumpToLogCommand = new RelayCommand<LogEntry>(ExecuteJumpToLogCommand);
             ClearSecondarySearchCommand = new RelayCommand(ExecuteClearSecondarySearchCommand);
+            ScrollToBottomCommand = new RelayCommand(ExecuteScrollToBottomCommand);
 
             // Subscribe to events
             _deviceService.DevicesChanged += OnDevicesChanged;
@@ -393,9 +521,40 @@ namespace PrettyLogcat.ViewModels
 
             // Initialize UI update timer (200ms interval)
             _uiUpdateTimer = new Timer(ProcessLogCache, null, TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200));
+            
+            // Initialize PID package update timer (5 seconds interval)
+            _pidPackageUpdateTimer = new Timer(UpdatePidPackageUI, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+            // Load settings and sync with filter service
+            LoadSettingsAndSync();
 
             // Initialize
             _ = Task.Run(InitializeAsync);
+        }
+
+        private void LoadSettingsAndSync()
+        {
+            try
+            {
+                // Settings are already loaded by SettingsService constructor
+                // Sync settings to filter service
+                _filterService.ShowVerbose = _settingsService.ShowVerbose;
+                _filterService.ShowDebug = _settingsService.ShowDebug;
+                _filterService.ShowInfo = _settingsService.ShowInfo;
+                _filterService.ShowWarn = _settingsService.ShowWarn;
+                _filterService.ShowError = _settingsService.ShowError;
+                _filterService.ShowFatal = _settingsService.ShowFatal;
+                
+                _filterService.TagFilter = _settingsService.TagFilter;
+                _filterService.MessageFilter = _settingsService.MessageFilter;
+                _filterService.PidFilter = _settingsService.PidFilter;
+
+                _logger.LogInformation("Settings loaded and synchronized with filter service");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load settings and sync with filter service");
+            }
         }
 
         private async Task InitializeAsync()
@@ -420,6 +579,9 @@ namespace PrettyLogcat.ViewModels
                 // Initial device refresh
                 await _deviceService.RefreshDevicesAsync();
 
+                // Try to auto-connect to the first available device
+                await TryAutoConnectAsync();
+
                 StatusMessage = "Ready";
             }
             catch (Exception ex)
@@ -431,6 +593,55 @@ namespace PrettyLogcat.ViewModels
             finally
             {
                 IsLoading = false;
+            }
+        }
+
+        private async Task TryAutoConnectAsync()
+        {
+            try
+            {
+                // Wait a moment for devices to be populated
+                await Task.Delay(500);
+
+                var availableDevice = _devices.FirstOrDefault(d => d.IsOnline);
+                if (availableDevice != null)
+                {
+                    _logger.LogInformation("Auto-connecting to device: {DeviceId}", availableDevice.Id);
+                    StatusMessage = $"Auto-connecting to {availableDevice.Name}...";
+                    
+                    // Set the selected device
+                    SelectedDevice = availableDevice;
+                    
+                    // Try to connect
+                    var success = await _deviceService.ConnectAsync(availableDevice);
+                    if (success)
+                    {
+                        IsConnected = true;
+                        ShowWelcomeMessage = false;
+                        StatusMessage = $"Auto-connected to {availableDevice.Name}";
+
+                        // Start logcat stream
+                        _logcatCancellationTokenSource = new CancellationTokenSource();
+                        _logcatService.StartLogcatStream(availableDevice.Id, _logcatCancellationTokenSource.Token);
+                        
+                        _logger.LogInformation("Auto-connected and started logcat stream for device {DeviceId}", availableDevice.Id);
+                    }
+                    else
+                    {
+                        StatusMessage = $"Failed to auto-connect to {availableDevice.Name}";
+                        _logger.LogWarning("Auto-connect failed for device {DeviceId}", availableDevice.Id);
+                    }
+                }
+                else
+                {
+                    StatusMessage = "No devices available for auto-connect";
+                    _logger.LogInformation("No online devices found for auto-connect");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to auto-connect to device");
+                StatusMessage = "Auto-connect failed";
             }
         }
 
@@ -492,10 +703,14 @@ namespace PrettyLogcat.ViewModels
                 // Start logcat stream
                 _logcatCancellationTokenSource = new CancellationTokenSource();
                 _logcatService.StartLogcatStream(SelectedDevice.Id, _logcatCancellationTokenSource.Token);
+                
+                // 添加调试日志
+                _logger.LogInformation("Started logcat stream for device {DeviceId}", SelectedDevice.Id);
             }
             else
             {
                 StatusMessage = $"Failed to connect to {SelectedDevice.Name}";
+                _logger.LogWarning("Failed to connect to device {DeviceId}", SelectedDevice?.Id);
             }
         }
 
@@ -506,8 +721,19 @@ namespace PrettyLogcat.ViewModels
 
             StatusMessage = $"Disconnecting from {SelectedDevice.Name}...";
 
-            // Stop logcat stream
-            _logcatCancellationTokenSource?.Cancel();
+            // Stop logcat stream safely
+            try
+            {
+                if (_logcatCancellationTokenSource != null && !_logcatCancellationTokenSource.IsCancellationRequested)
+                {
+                    _logcatCancellationTokenSource.Cancel();
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                _logger.LogDebug("CancellationTokenSource was already disposed during disconnect");
+            }
+            
             _logcatService.StopLogcatStream();
 
             var success = await _deviceService.DisconnectAsync(SelectedDevice);
@@ -543,6 +769,8 @@ namespace PrettyLogcat.ViewModels
             {
                 _allLogs.Clear();
                 _filteredLogs.Clear();
+                _displayedLogs.Clear();  // 添加清空显示的日志
+                _pinnedLogs.Clear();     // 同时清空固定的日志
                 
                 if (IsConnected && SelectedDevice != null)
                 {
@@ -687,7 +915,7 @@ namespace PrettyLogcat.ViewModels
 
         private void OnLogEntryReceived(LogEntry logEntry)
         {
-            // 将日志条目添加到缓存中，而不是直接更新UI
+            // 将日志条目添加到缓存中，所有处理都在后台线程
             lock (_cacheLock)
             {
                 _logEntryCache.Enqueue(logEntry);
@@ -718,16 +946,20 @@ namespace PrettyLogcat.ViewModels
                 _hasPendingUpdates = false;
             }
 
-            // 在UI线程上批量更新
-            var app = System.Windows.Application.Current;
-            if (app != null && entriesToProcess.Count > 0)
+            // 在后台线程处理数据，避免阻塞UI
+            Task.Run(() =>
             {
-                app.Dispatcher.Invoke(() =>
+                try
                 {
-                    // 批量添加到所有日志集合
+                    // 创建临时集合来存储处理结果
+                    var newAllLogs = new List<LogEntry>();
+                    var newFilteredLogs = new List<LogEntry>();
+                    var newDisplayedLogs = new List<LogEntry>();
+
+                    // 在后台线程处理所有逻辑
                     foreach (var logEntry in entriesToProcess)
                     {
-                        _allLogs.Add(logEntry);
+                        newAllLogs.Add(logEntry);
                         
                         // 尝试从Tag中提取包名信息并更新PID映射
                         TryExtractPackageNameFromLogEntry(logEntry);
@@ -735,79 +967,175 @@ namespace PrettyLogcat.ViewModels
                         // 检查是否应该添加到过滤后的日志集合
                         if (_filterService.ShouldIncludeLogEntry(logEntry))
                         {
-                            _filteredLogs.Add(logEntry);
+                            newFilteredLogs.Add(logEntry);
+                            
+                            // 应用二次搜索过滤
+                            if (string.IsNullOrWhiteSpace(_secondarySearchText) ||
+                                logEntry.Message.Contains(_secondarySearchText, StringComparison.OrdinalIgnoreCase) ||
+                                logEntry.Tag.Contains(_secondarySearchText, StringComparison.OrdinalIgnoreCase))
+                            {
+                                newDisplayedLogs.Add(logEntry);
+                            }
                         }
                     }
 
-                    // 更新统计信息
-                    OnPropertyChanged(nameof(TotalLogCount));
-                    OnPropertyChanged(nameof(FilteredLogCount));
-
-                    // Auto-scroll if enabled
-                    if (AutoScroll && _filteredLogs.Count > 0)
+                    // 只在UI线程更新集合，最小化UI线程工作
+                    var app = System.Windows.Application.Current;
+                    if (app != null && newAllLogs.Count > 0)
                     {
-                        // Scroll to bottom logic would be implemented in the view
+                        app.Dispatcher.BeginInvoke(() =>
+                        {
+                            // 批量添加到UI集合
+                            foreach (var entry in newAllLogs)
+                            {
+                                _allLogs.Add(entry);
+                            }
+                            
+                            foreach (var entry in newFilteredLogs)
+                            {
+                                _filteredLogs.Add(entry);
+                            }
+                            
+                            var hasNewDisplayedLogs = newDisplayedLogs.Count > 0;
+                            foreach (var entry in newDisplayedLogs)
+                            {
+                                _displayedLogs.Add(entry);
+                            }
+
+                            // 更新统计信息
+                            OnPropertyChanged(nameof(TotalLogCount));
+                            OnPropertyChanged(nameof(FilteredLogCount));
+                            
+                            // 如果有新的显示日志且启用了自动滚动，触发滚动到底部
+                            if (hasNewDisplayedLogs && AutoScroll)
+                            {
+                                ScrollToBottomRequested?.Invoke(this, EventArgs.Empty);
+                            }
+                        });
                     }
-                });
-            }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing log cache");
+                }
+            });
         }
 
         private void ApplyFilters()
         {
-            var app = System.Windows.Application.Current;
-            if (app != null)
+            // 在后台线程处理过滤逻辑，避免阻塞UI
+            Task.Run(() =>
             {
-                app.Dispatcher.Invoke(() =>
+                try
                 {
-                    _filteredLogs.Clear();
-                    var filtered = _filterService.FilterLogEntries(_allLogs);
+                    var allLogsCopy = new List<LogEntry>();
+                    
+                    // 获取所有日志的副本
+                    var app = System.Windows.Application.Current;
+                    if (app != null)
+                    {
+                        app.Dispatcher.Invoke(() =>
+                        {
+                            allLogsCopy.AddRange(_allLogs);
+                        });
+                    }
+
+                    // 在后台线程应用过滤
+                    var filtered = _filterService.FilterLogEntries(allLogsCopy);
+                    var filteredList = new List<LogEntry>();
                     
                     // 为日志条目设置原始索引
                     int index = 0;
                     foreach (var entry in filtered)
                     {
                         entry.OriginalIndex = index++;
-                        _filteredLogs.Add(entry);
+                        filteredList.Add(entry);
                     }
 
-                    OnPropertyChanged(nameof(FilteredLogCount));
-                    ApplySecondarySearch();
-                });
-            }
+                    // 在UI线程更新过滤后的日志集合
+                    if (app != null)
+                    {
+                        app.Dispatcher.BeginInvoke(() =>
+                        {
+                            _filteredLogs.Clear();
+                            foreach (var entry in filteredList)
+                            {
+                                _filteredLogs.Add(entry);
+                            }
+                            OnPropertyChanged(nameof(FilteredLogCount));
+                        });
+
+                        // 应用二次搜索
+                        ApplySecondarySearch();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error applying filters");
+                }
+            });
         }
 
         private void ApplySecondarySearch()
         {
-            var app = System.Windows.Application.Current;
-            if (app != null)
+            // 在后台线程处理搜索逻辑，避免阻塞UI
+            Task.Run(() =>
             {
-                app.Dispatcher.Invoke(() =>
+                try
                 {
-                    _displayedLogs.Clear();
+                    var searchText = _secondarySearchText;
+                    var filteredLogsCopy = new List<LogEntry>();
                     
-                    if (string.IsNullOrWhiteSpace(_secondarySearchText))
+                    // 获取当前过滤后的日志副本
+                    var app = System.Windows.Application.Current;
+                    if (app != null)
+                    {
+                        app.Dispatcher.Invoke(() =>
+                        {
+                            filteredLogsCopy.AddRange(_filteredLogs);
+                        });
+                    }
+
+                    // 在后台线程应用二次搜索
+                    var displayedLogsCopy = new List<LogEntry>();
+                    
+                    if (string.IsNullOrWhiteSpace(searchText))
                     {
                         // 没有二次搜索条件，显示所有过滤后的日志
-                        foreach (var entry in _filteredLogs)
-                        {
-                            _displayedLogs.Add(entry);
-                        }
+                        displayedLogsCopy.AddRange(filteredLogsCopy);
                     }
                     else
                     {
                         // 应用二次搜索
-                        var searchText = _secondarySearchText.ToLowerInvariant();
-                        foreach (var entry in _filteredLogs)
+                        var searchTextLower = searchText.ToLowerInvariant();
+                        foreach (var entry in filteredLogsCopy)
                         {
-                            if (entry.Message.ToLowerInvariant().Contains(searchText) ||
-                                entry.Tag.ToLowerInvariant().Contains(searchText))
+                            if (entry.Message.Contains(searchTextLower, StringComparison.OrdinalIgnoreCase) ||
+                                entry.Tag.Contains(searchTextLower, StringComparison.OrdinalIgnoreCase))
                             {
-                                _displayedLogs.Add(entry);
+                                displayedLogsCopy.Add(entry);
                             }
                         }
                     }
-                });
-            }
+
+                    // 在UI线程更新显示的日志集合
+                    if (app != null)
+                    {
+                        app.Dispatcher.BeginInvoke(() =>
+                        {
+                            _displayedLogs.Clear();
+                            foreach (var entry in displayedLogsCopy)
+                            {
+                                _displayedLogs.Add(entry);
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error applying secondary search");
+                }
+            });
         }
 
         private void TryExtractPackageNameFromLogEntry(LogEntry logEntry)
@@ -823,11 +1151,8 @@ namespace PrettyLogcat.ViewModels
                 !tag.Contains(' ') &&
                 char.IsLetter(tag[0]))
             {
-                // 可能是包名，更新映射
+                // 可能是包名，更新映射（不立即通知UI更新，避免频繁刷新）
                 _filterService.UpdatePidPackageMapping(logEntry.Pid, tag);
-                
-                // 通知UI更新
-                OnPropertyChanged(nameof(AvailablePidPackages));
             }
             
             // 也可以尝试从Message中提取包名信息
@@ -846,7 +1171,6 @@ namespace PrettyLogcat.ViewModels
                         System.Text.RegularExpressions.Regex.IsMatch(word, @"^[a-zA-Z][a-zA-Z0-9_.]*[a-zA-Z0-9]$"))
                     {
                         _filterService.UpdatePidPackageMapping(logEntry.Pid, word);
-                        OnPropertyChanged(nameof(AvailablePidPackages));
                         break;
                     }
                 }
@@ -944,22 +1268,124 @@ namespace PrettyLogcat.ViewModels
             StatusMessage = "Secondary search cleared";
         }
 
+        private void ExecuteScrollToBottomCommand()
+        {
+            try
+            {
+                // 触发滚动到底部事件（跳转到最后一条日志）
+                ScrollToBottomRequested?.Invoke(this, EventArgs.Empty);
+                
+                // 重新启用自动滚动
+                AutoScroll = true;
+                
+                // 隐藏浮动按钮
+                ShowScrollToBottomButton = false;
+                
+                StatusMessage = "Jumped to latest log, auto-scroll enabled";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to scroll to bottom");
+                StatusMessage = "Failed to scroll to bottom";
+            }
+        }
+
+
+
+        // 事件：请求滚动到底部
+        public event EventHandler? ScrollToBottomRequested;
+
+        private void UpdatePidPackageUI(object? state)
+        {
+            var app = System.Windows.Application.Current;
+            if (app != null)
+            {
+                app.Dispatcher.BeginInvoke(() =>
+                {
+                    OnPropertyChanged(nameof(AvailablePidPackages));
+                });
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            var app = System.Windows.Application.Current;
+            if (app != null)
+            {
+                if (app.Dispatcher.CheckAccess())
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+                else
+                {
+                    app.Dispatcher.BeginInvoke(() =>
+                    {
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                    });
+                }
+            }
+            else
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
         }
 
         public void Dispose()
         {
-            _logcatCancellationTokenSource?.Cancel();
-            _logcatCancellationTokenSource?.Dispose();
-            _logEntriesSubscription?.Dispose();
-            _uiUpdateTimer?.Dispose();
-            _deviceService.StopDeviceMonitoring();
-            if (_logcatService is IDisposable disposableLogcatService)
-                disposableLogcatService.Dispose();
+            try
+            {
+                // Save settings before cleanup
+                _settingsService?.SaveSettings();
+                _logger.LogInformation("Settings saved on application exit");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save settings on exit");
+            }
+
+            try
+            {
+                // Safely cancel and dispose CancellationTokenSource
+                if (_logcatCancellationTokenSource != null && !_logcatCancellationTokenSource.IsCancellationRequested)
+                {
+                    _logcatCancellationTokenSource.Cancel();
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // CancellationTokenSource was already disposed, ignore
+                _logger.LogDebug("CancellationTokenSource was already disposed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error canceling CancellationTokenSource");
+            }
+
+            try
+            {
+                _logcatCancellationTokenSource?.Dispose();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, ignore
+            }
+
+            try
+            {
+                _logEntriesSubscription?.Dispose();
+                _uiUpdateTimer?.Dispose();
+                _pidPackageUpdateTimer?.Dispose();
+                _deviceService?.StopDeviceMonitoring();
+                
+                if (_logcatService is IDisposable disposableLogcatService)
+                    disposableLogcatService.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing resources");
+            }
         }
     }
 
