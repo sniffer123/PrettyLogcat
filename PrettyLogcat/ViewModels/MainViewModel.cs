@@ -525,29 +525,64 @@ namespace PrettyLogcat.ViewModels
             _logger.LogInformation("OnDevicesChanged called with {DeviceCount} devices", devices.Count());
             foreach (var device in devices)
             {
-                _logger.LogInformation("Device: {DeviceId}, State: {State}, Model: {Model}, Name: {Name}", 
+                _logger.LogInformation("Device: {DeviceId}, State: {State}, Model: {Model}, Name: {Name}",
                     device.Id, device.State, device.Model, device.Name);
             }
-            
+
             var app = System.Windows.Application.Current;
             if (app != null)
             {
                 app.Dispatcher.Invoke(() =>
                 {
-                    _devices.Clear();
-                    foreach (var device in devices)
-                    {
-                        _devices.Add(device);
-                    }
+                    var newDeviceList = devices.ToList();
 
-                    // If selected device is no longer available, clear selection
-                    if (SelectedDevice != null && !devices.Any(d => d.Id == SelectedDevice.Id))
+                    // Check if the device list has actually changed
+                    var currentDeviceIds = _devices.Select(d => d.Id).OrderBy(id => id).ToList();
+                    var newDeviceIds = newDeviceList.Select(d => d.Id).OrderBy(id => id).ToList();
+
+                    bool devicesChanged = !currentDeviceIds.SequenceEqual(newDeviceIds);
+
+                    if (devicesChanged)
                     {
-                        SelectedDevice = null;
-                        if (IsConnected)
+                        _logger.LogInformation("Device list changed, updating UI");
+
+                        // Store the currently selected device ID
+                        var selectedDeviceId = SelectedDevice?.Id;
+
+                        // Update the device list
+                        _devices.Clear();
+                        foreach (var device in newDeviceList)
                         {
-                            _ = Task.Run(DisconnectFromDevice);
+                            _devices.Add(device);
                         }
+
+                        // Restore selection if the device still exists
+                        if (selectedDeviceId != null)
+                        {
+                            var stillExists = newDeviceList.Any(d => d.Id == selectedDeviceId);
+
+                            if (stillExists)
+                            {
+                                // Restore the selection to the same device
+                                SelectedDevice = _devices.FirstOrDefault(d => d.Id == selectedDeviceId);
+                                _logger.LogInformation("Preserved selection for device {DeviceId}", selectedDeviceId);
+                            }
+                            else
+                            {
+                                // Device was removed, clear selection
+                                _logger.LogInformation("Selected device {DeviceId} was removed, clearing selection", selectedDeviceId);
+                                SelectedDevice = null;
+
+                                if (IsConnected)
+                                {
+                                    _ = Task.Run(DisconnectFromDevice);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug("Device list unchanged, skipping UI update");
                     }
                 });
             }
