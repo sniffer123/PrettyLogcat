@@ -222,7 +222,15 @@
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="60"/>
                             <DataGridTextColumn Header="Tag" Binding="{Binding Tag}" Width="120"/>
-                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                            <DataGridTemplateColumn Header="Message" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Message}"
+                                                   TextWrapping="{Binding DataContext.WordWrap, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToTextWrappingConverter}}"
+                                                   Padding="4,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
 

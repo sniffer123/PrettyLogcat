@@ -14,6 +14,7 @@
             <!-- Converters -->
             <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
+            <converters:BoolToTextWrappingConverter x:Key="BoolToTextWrappingConverter"/>
             
             <!-- Global Resources -->
             <SolidColorBrush x:Key="VerboseBrush" Color="#FF9E9E9E"/>
