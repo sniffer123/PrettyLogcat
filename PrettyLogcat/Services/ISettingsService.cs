@@ -30,6 +30,14 @@ namespace PrettyLogcat.Services
         List<string> MessageFilterHistory { get; set; }
         List<string> PidFilterHistory { get; set; }
 
+        // Quick Filters
+        List<string> QuickFilters { get; set; }
+
+        // Display settings
+        int LogPreviewLineLimit { get; set; }
+        bool WordWrap { get; set; }
+        bool AutoScroll { get; set; }
+
         /// <summary>
         /// Load settings from storage
         /// </summary>

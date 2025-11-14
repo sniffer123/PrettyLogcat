@@ -7,7 +7,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="65119350-0b22-4a01-ac7f-1ead739c14d6" name="Changes" comment="" />
+    <list default="true" id="65119350-0b22-4a01-ac7f-1ead739c14d6" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.PrettyLogcat/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.PrettyLogcat/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Models/LogEntry.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Models/LogEntry.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Services/ISettingsService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Services/ISettingsService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Services/LogcatService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Services/LogcatService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Services/SettingsService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Services/SettingsService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/ViewModels/MainViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/ViewModels/MainViewModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Views/MainWindow.xaml" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Views/MainWindow.xaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PrettyLogcat/Views/MainWindow.xaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PrettyLogcat/Views/MainWindow.xaml.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -15,6 +24,12 @@
   </component>
   <component name="DpaMonitoringSettings">
     <option name="autoShow" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/e9defbb4d8db4115acd05830942be106f798b0/5b/fb3af10a/DataGridTemplateColumn.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 6
@@ -28,6 +43,7 @@
   "keyToString": {
     ".NET Project.PrettyLogcat.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "develop",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -77,6 +93,7 @@
       <workItem from="1762256454039" duration="779000" />
       <workItem from="1762257252902" duration="29000" />
       <workItem from="1762257344105" duration="1450000" />
+      <workItem from="1763088715887" duration="2048000" />
     </task>
     <servers />
   </component>

@@ -41,6 +41,11 @@ namespace PrettyLogcat.ViewModels
         private bool _showScrollToBottomButton = false;
         private string _secondarySearchText = string.Empty;
         private LogEntry? _selectedLogEntry;
+        
+        // Quick Filters
+        private readonly ObservableCollection<QuickFilter> _quickFilters = new();
+        private QuickFilter? _selectedQuickFilter;
+        private bool _hasActiveQuickFilter = false;
         private CancellationTokenSource? _logcatCancellationTokenSource;
         private IDisposable? _logEntriesSubscription;
 
@@ -194,6 +199,35 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
+        public ObservableCollection<QuickFilter> QuickFilters => _quickFilters;
+
+        public QuickFilter? SelectedQuickFilter
+        {
+            get => _selectedQuickFilter;
+            set
+            {
+                if (_selectedQuickFilter != value)
+                {
+                    _selectedQuickFilter = value;
+                    OnPropertyChanged(nameof(SelectedQuickFilter));
+                    ToggleQuickFilter(value);
+                }
+            }
+        }
+
+        public bool HasActiveQuickFilter
+        {
+            get => _hasActiveQuickFilter;
+            set
+            {
+                if (_hasActiveQuickFilter != value)
+                {
+                    _hasActiveQuickFilter = value;
+                    OnPropertyChanged(nameof(HasActiveQuickFilter));
+                }
+            }
+        }
+
         public LogEntry? SelectedLogEntry
         {
             get => _selectedLogEntry;
@@ -216,10 +250,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowTimeColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowTimeColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowTimeColumn = value;
                     OnPropertyChanged(nameof(ShowTimeColumn));
-                    _logger.LogDebug("ShowTimeColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -232,10 +264,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowLevelColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowLevelColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowLevelColumn = value;
                     OnPropertyChanged(nameof(ShowLevelColumn));
-                    _logger.LogDebug("ShowLevelColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -248,10 +278,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowPidColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowPidColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowPidColumn = value;
                     OnPropertyChanged(nameof(ShowPidColumn));
-                    _logger.LogDebug("ShowPidColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -264,10 +292,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowTidColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowTidColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowTidColumn = value;
                     OnPropertyChanged(nameof(ShowTidColumn));
-                    _logger.LogDebug("ShowTidColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -280,10 +306,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowTagColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowTagColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowTagColumn = value;
                     OnPropertyChanged(nameof(ShowTagColumn));
-                    _logger.LogDebug("ShowTagColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -296,10 +320,8 @@ namespace PrettyLogcat.ViewModels
                 var oldValue = _settingsService.ShowMessageColumn;
                 if (oldValue != value)
                 {
-                    _logger.LogDebug("ShowMessageColumn changing from {OldValue} to {NewValue}", oldValue, value);
                     _settingsService.ShowMessageColumn = value;
                     OnPropertyChanged(nameof(ShowMessageColumn));
-                    _logger.LogDebug("ShowMessageColumn PropertyChanged triggered for value: {Value}", value);
                 }
             }
         }
@@ -481,6 +503,7 @@ namespace PrettyLogcat.ViewModels
         public ICommand JumpToLogCommand { get; }
         public ICommand ClearSecondarySearchCommand { get; }
         public ICommand ScrollToBottomCommand { get; }
+        public ICommand ToggleLogExpandCommand { get; }
 
         public MainViewModel(
             ILogger<MainViewModel> logger,
@@ -510,6 +533,7 @@ namespace PrettyLogcat.ViewModels
             JumpToLogCommand = new RelayCommand<LogEntry>(ExecuteJumpToLogCommand);
             ClearSecondarySearchCommand = new RelayCommand(ExecuteClearSecondarySearchCommand);
             ScrollToBottomCommand = new RelayCommand(ExecuteScrollToBottomCommand);
+            ToggleLogExpandCommand = new RelayCommand<LogEntry>(ExecuteToggleLogExpandCommand);
 
             // Subscribe to events
             _deviceService.DevicesChanged += OnDevicesChanged;
@@ -548,6 +572,22 @@ namespace PrettyLogcat.ViewModels
                 _filterService.TagFilter = _settingsService.TagFilter;
                 _filterService.MessageFilter = _settingsService.MessageFilter;
                 _filterService.PidFilter = _settingsService.PidFilter;
+
+                // Load display settings
+                WordWrap = _settingsService.WordWrap;
+                AutoScroll = _settingsService.AutoScroll;
+                LogEntry.PreviewLineLimit = _settingsService.LogPreviewLineLimit;
+
+                // Load column visibility settings
+                ShowTimeColumn = _settingsService.ShowTimeColumn;
+                ShowLevelColumn = _settingsService.ShowLevelColumn;
+                ShowPidColumn = _settingsService.ShowPidColumn;
+                ShowTidColumn = _settingsService.ShowTidColumn;
+                ShowTagColumn = _settingsService.ShowTagColumn;
+                ShowMessageColumn = _settingsService.ShowMessageColumn;
+
+                // Load quick filters
+                LoadQuickFilters();
 
                 _logger.LogInformation("Settings loaded and synchronized with filter service");
             }
@@ -1268,6 +1308,101 @@ namespace PrettyLogcat.ViewModels
             StatusMessage = "Secondary search cleared";
         }
 
+        // Quick Filter Methods
+        public void AddQuickFilter(string filterText)
+        {
+            if (string.IsNullOrWhiteSpace(filterText))
+                return;
+
+            // Check if filter already exists
+            if (_quickFilters.Any(f => f.Text.Equals(filterText, StringComparison.OrdinalIgnoreCase)))
+            {
+                StatusMessage = "Filter already exists";
+                return;
+            }
+
+            var quickFilter = new QuickFilter(filterText);
+            _quickFilters.Add(quickFilter);
+            SaveQuickFilters();
+            StatusMessage = $"Quick filter '{filterText}' added";
+        }
+
+        public void RemoveQuickFilter(QuickFilter filter)
+        {
+            if (filter == null) return;
+
+            if (filter.IsActive)
+            {
+                SecondarySearchText = string.Empty;
+                HasActiveQuickFilter = false;
+            }
+
+            _quickFilters.Remove(filter);
+            SaveQuickFilters();
+            StatusMessage = $"Quick filter '{filter.Text}' removed";
+        }
+
+        public void ToggleQuickFilter(QuickFilter? filter)
+        {
+            if (filter == null) return;
+
+            // If this filter is already active, deactivate it
+            if (filter.IsActive)
+            {
+                filter.IsActive = false;
+                SecondarySearchText = string.Empty;
+                HasActiveQuickFilter = false;
+                StatusMessage = $"Quick filter '{filter.Text}' cleared";
+                return;
+            }
+
+            // Clear all other active filters and activate this one
+            foreach (var qf in _quickFilters)
+            {
+                qf.IsActive = (qf == filter);
+            }
+
+            SecondarySearchText = filter.Text;
+            HasActiveQuickFilter = true;
+            StatusMessage = $"Quick filter '{filter.Text}' applied";
+        }
+
+        private void LoadQuickFilters()
+        {
+            try
+            {
+                var savedFilters = _settingsService.QuickFilters;
+                foreach (var filterText in savedFilters)
+                {
+                    if (!string.IsNullOrWhiteSpace(filterText))
+                    {
+                        _quickFilters.Add(new QuickFilter(filterText));
+                    }
+                }
+                _logger.LogInformation("Loaded {Count} quick filters", _quickFilters.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load quick filters");
+            }
+        }
+
+        private void SaveQuickFilters()
+        {
+            try
+            {
+                var filterTexts = _quickFilters.Select(f => f.Text).ToList();
+                _settingsService.QuickFilters = filterTexts;
+                _logger.LogDebug("Saved {Count} quick filters", filterTexts.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save quick filters");
+            }
+        }
+
+
+
         private void ExecuteScrollToBottomCommand()
         {
             try
@@ -1290,7 +1425,22 @@ namespace PrettyLogcat.ViewModels
             }
         }
 
-
+        private void ExecuteToggleLogExpandCommand(LogEntry? logEntry)
+        {
+            if (logEntry != null && logEntry.IsMultiLine)
+            {
+                try
+                {
+                    logEntry.IsExpanded = !logEntry.IsExpanded;
+                    StatusMessage = logEntry.IsExpanded ? "日志已展开" : "日志已收起";
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to toggle log expand state");
+                    StatusMessage = "Failed to toggle log expand state";
+                }
+            }
+        }
 
         // 事件：请求滚动到底部
         public event EventHandler? ScrollToBottomRequested;
@@ -1330,6 +1480,12 @@ namespace PrettyLogcat.ViewModels
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
+        }
+
+        public Views.SettingsWindow CreateSettingsWindow()
+        {
+            var settingsViewModel = new SettingsViewModel(_settingsService);
+            return new Views.SettingsWindow(settingsViewModel);
         }
 
         public void Dispose()

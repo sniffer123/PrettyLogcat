@@ -142,6 +142,32 @@ namespace PrettyLogcat.Services
             set { _settings.PidFilterHistory = value; SaveSettings(); }
         }
 
+        // Quick Filters
+        public List<string> QuickFilters
+        {
+            get => _settings.QuickFilters;
+            set { _settings.QuickFilters = value; SaveSettings(); }
+        }
+
+        // Display settings
+        public int LogPreviewLineLimit
+        {
+            get => _settings.LogPreviewLineLimit;
+            set { _settings.LogPreviewLineLimit = value; SaveSettings(); }
+        }
+
+        public bool WordWrap
+        {
+            get => _settings.WordWrap;
+            set { _settings.WordWrap = value; SaveSettings(); }
+        }
+
+        public bool AutoScroll
+        {
+            get => _settings.AutoScroll;
+            set { _settings.AutoScroll = value; SaveSettings(); }
+        }
+
         public void LoadSettings()
         {
             try
@@ -241,6 +267,14 @@ namespace PrettyLogcat.Services
             public List<string> TagFilterHistory { get; set; } = new List<string>();
             public List<string> MessageFilterHistory { get; set; } = new List<string>();
             public List<string> PidFilterHistory { get; set; } = new List<string>();
+
+            // Quick Filters
+            public List<string> QuickFilters { get; set; } = new List<string>();
+
+            // Display settings
+            public int LogPreviewLineLimit { get; set; } = 3; // Default to 3 lines
+            public bool WordWrap { get; set; } = false;
+            public bool AutoScroll { get; set; } = true;
         }
     }
 }

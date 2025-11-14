@@ -700,6 +700,33 @@ A modern, feature-rich Android logcat viewer with:
                 MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        private void PreferencesMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (DataContext is MainViewModel mainViewModel)
+                {
+                    var settingsWindow = mainViewModel.CreateSettingsWindow();
+                    settingsWindow.Owner = this;
+                    
+                    if (settingsWindow.ShowDialog() == true)
+                    {
+                        // Settings were applied, refresh UI if needed
+                        RefreshDataGridColumns();
+                        
+                        // Show confirmation
+                        MessageBox.Show("Settings have been saved successfully.", "Settings Applied", 
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open settings: {ex.Message}", "Error", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void UserGuideMenuItem_Click(object sender, RoutedEventArgs e)
         {
             var guideMessage = @"PrettyLogcat User Guide
@@ -715,6 +742,7 @@ Key Features:
 • Pin Logs: Right-click any log entry to pin it for quick reference
 • Column Visibility: Right-click column headers to show/hide columns
 • Auto Scroll: Toggle automatic scrolling to latest logs
+• Settings: Configure display options, line limits, and more
 
 ADB Tools:
 • Restart ADB Server: Fix connection issues
@@ -724,10 +752,80 @@ ADB Tools:
 Tips:
 • Use Ctrl+C to copy selected log entries
 • Double-click pinned logs to jump to them in main list
+• Click long log entries to expand/collapse them
+• Access Settings menu to customize display options
 • Save logs to file for later analysis";
 
             MessageBox.Show(guideMessage, "User Guide", 
                 MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        #endregion
+
+        #region Log Message Events
+
+        private void LogMessage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is TextBlock textBlock && textBlock.Tag is LogEntry logEntry)
+            {
+                if (DataContext is MainViewModel viewModel)
+                {
+                    // 只有多行日志才需要展开/收起
+                    if (logEntry.IsMultiLine)
+                    {
+                        viewModel.ToggleLogExpandCommand.Execute(logEntry);
+                    }
+                }
+            }
+        }
+
+        #endregion
+
+        #region Quick Filter Events
+
+        private void AddQuickFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                var filterText = NewQuickFilterText.Text?.Trim();
+                if (!string.IsNullOrEmpty(filterText))
+                {
+                    viewModel.AddQuickFilter(filterText);
+                    NewQuickFilterText.Text = string.Empty;
+                }
+            }
+        }
+
+        private void RemoveQuickFilter_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel && sender is Button button)
+            {
+                if (button.CommandParameter is QuickFilter filter)
+                {
+                    viewModel.RemoveQuickFilter(filter);
+                }
+            }
+        }
+
+        private void QuickFilterItem_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel && sender is ListBoxItem item && item.DataContext is QuickFilter filter)
+            {
+                viewModel.ToggleQuickFilter(filter);
+            }
+        }
+
+        private void NewQuickFilterText_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && DataContext is MainViewModel viewModel)
+            {
+                var filterText = NewQuickFilterText.Text?.Trim();
+                if (!string.IsNullOrEmpty(filterText))
+                {
+                    viewModel.AddQuickFilter(filterText);
+                    NewQuickFilterText.Text = string.Empty;
+                }
+            }
         }
 
         #endregion

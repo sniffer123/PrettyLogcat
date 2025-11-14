@@ -29,6 +29,10 @@ namespace PrettyLogcat.Services
         private readonly object _logProcessingLock = new();
         private Timer? _pendingLogTimer;
         private const int LogMergeDelayMs = 100; // 0.1秒延迟
+        
+        // 用于处理相同tid和时间戳的日志合并
+        private LogEntry? _lastProcessedEntry;
+        private readonly Dictionary<string, LogEntry> _tidTimestampCache = new();
 
         public IObservable<LogEntry> LogEntries => _logEntriesSubject.AsObservable();
 
@@ -70,10 +74,12 @@ namespace PrettyLogcat.Services
             _logcatSubscription?.Dispose();
             _logcatSubscription = null;
             
-            // 清理待处理的日志条目
+            // 清理待处理的日志条目和合并状态
             lock (_logProcessingLock)
             {
                 FlushPendingLogEntry();
+                _lastProcessedEntry = null;
+                _tidTimestampCache.Clear();
             }
             
             _logger.LogInformation("Stopped logcat service");
@@ -91,14 +97,28 @@ namespace PrettyLogcat.Services
                 if (match.Success)
                 {
                     // 这是一个新的日志条目
-                    // 如果有待处理的日志条目，先发送它
-                    FlushPendingLogEntry();
+                    var newLogEntry = ParseLogLine(line);
                     
-                    // 创建新的日志条目
-                    _pendingLogEntry = ParseLogLine(line);
-                    
-                    // 启动定时器，0.1秒后发送日志条目（如果没有续行的话）
-                    StartPendingLogTimer();
+                    // 检查是否可以与当前待处理的日志合并
+                    if (_pendingLogEntry != null && CanMergeLogEntries(_pendingLogEntry, newLogEntry))
+                    {
+                        // 可以合并，将新日志合并到待处理的日志中
+                        MergeLogEntries(_pendingLogEntry, newLogEntry);
+                        
+                        // 重新启动定时器，等待可能的更多合并
+                        StartPendingLogTimer();
+                    }
+                    else
+                    {
+                        // 不能合并，先发送待处理的日志条目
+                        FlushPendingLogEntry();
+                        
+                        // 设置新的待处理日志条目
+                        _pendingLogEntry = newLogEntry;
+                        
+                        // 启动定时器，0.1秒后发送日志条目（如果没有续行的话）
+                        StartPendingLogTimer();
+                    }
                 }
                 else
                 {
@@ -158,14 +178,76 @@ namespace PrettyLogcat.Services
         {
             if (_pendingLogEntry != null)
             {
+                // 发送待处理的日志条目
                 _logEntriesSubject.OnNext(_pendingLogEntry);
+                _lastProcessedEntry = _pendingLogEntry;
                 _pendingLogEntry = null;
             }
             CancelPendingLogTimer();
         }
 
+        private bool CanMergeLogEntries(LogEntry existingEntry, LogEntry newEntry)
+        {
+            // 检查是否为相同的pid、tid和时间戳
+            return existingEntry.Pid == newEntry.Pid &&
+                   existingEntry.Tid == newEntry.Tid && 
+                   existingEntry.TimeStamp == newEntry.TimeStamp;
+        }
+
+        private void MergeLogEntries(LogEntry targetEntry, LogEntry sourceEntry)
+        {
+            // 将源日志的消息和原始行内容合并到目标日志中
+            targetEntry.Message += Environment.NewLine + sourceEntry.Message;
+            targetEntry.RawLine += Environment.NewLine + sourceEntry.RawLine;
+            targetEntry.IsMerged = true;
+            
+            // 如果源日志被固定，目标日志也应该被固定
+            if (sourceEntry.IsPinned)
+            {
+                targetEntry.IsPinned = true;
+            }
+        }
+
+        private LogEntry? TryMergeWithPreviousLogEntry(LogEntry currentEntry)
+        {
+            // 如果没有上一条日志，无法合并
+            if (_lastProcessedEntry == null)
+                return null;
+
+            // 检查是否为相同的pid、tid和时间戳
+            if (CanMergeLogEntries(_lastProcessedEntry, currentEntry))
+            {
+                // 创建合并后的日志条目
+                var mergedEntry = new LogEntry
+                {
+                    TimeStamp = _lastProcessedEntry.TimeStamp,
+                    Level = _lastProcessedEntry.Level,
+                    Pid = _lastProcessedEntry.Pid,
+                    Tid = _lastProcessedEntry.Tid,
+                    Tag = _lastProcessedEntry.Tag,
+                    // 合并消息内容，保持换行格式
+                    Message = _lastProcessedEntry.Message + Environment.NewLine + currentEntry.Message,
+                    // 合并原始行内容
+                    RawLine = _lastProcessedEntry.RawLine + Environment.NewLine + currentEntry.RawLine,
+                    IsPinned = _lastProcessedEntry.IsPinned || currentEntry.IsPinned,
+                    OriginalIndex = _lastProcessedEntry.OriginalIndex,
+                    IsMerged = true
+                };
+
+                return mergedEntry;
+            }
+
+            return null;
+        }
+
         public void ClearLogs()
         {
+            lock (_logProcessingLock)
+            {
+                _lastProcessedEntry = null;
+                _tidTimestampCache.Clear();
+            }
+            
             // This method is for clearing the UI logs, not the device logcat buffer
             // The actual device buffer clearing is handled by AdbService.ClearLogcatAsync
             _logger.LogInformation("Cleared local log entries");

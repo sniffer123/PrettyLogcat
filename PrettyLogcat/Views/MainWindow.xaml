@@ -13,6 +13,7 @@
         <converters:BooleanToTextWrappingConverter x:Key="BooleanToTextWrappingConverter"/>
         <converters:CountToVisibilityConverter x:Key="CountToVisibilityConverter"/>
         <converters:LogLevelToTextBrushConverter x:Key="LogLevelToTextBrushConverter"/>
+
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
 
@@ -68,6 +69,15 @@
                 <MenuItem Header="Quick _Screenshot" Click="QuickScreenshotMenuItem_Click">
                     <MenuItem.Icon>
                         <TextBlock Text="📸" FontSize="14"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+            </MenuItem>
+            
+            <!-- Settings Menu -->
+            <MenuItem Header="_Settings" Foreground="Black">
+                <MenuItem Header="_Preferences..." Click="PreferencesMenuItem_Click">
+                    <MenuItem.Icon>
+                        <TextBlock Text="⚙️" FontSize="14"/>
                     </MenuItem.Icon>
                 </MenuItem>
             </MenuItem>
@@ -139,14 +149,24 @@
                     <StackPanel Margin="16">
                         <!-- Log Level Filters -->
                         <TextBlock Text="Log Levels" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
-                        <StackPanel>
-                            <CheckBox Content="Verbose" IsChecked="{Binding ShowVerbose}" Foreground="{StaticResource VerboseBrush}"/>
-                            <CheckBox Content="Debug" IsChecked="{Binding ShowDebug}" Foreground="{StaticResource DebugBrush}"/>
-                            <CheckBox Content="Info" IsChecked="{Binding ShowInfo}" Foreground="{StaticResource InfoBrush}"/>
-                            <CheckBox Content="Warning" IsChecked="{Binding ShowWarn}" Foreground="{StaticResource WarnBrush}"/>
-                            <CheckBox Content="Error" IsChecked="{Binding ShowError}" Foreground="{StaticResource ErrorBrush}"/>
-                            <CheckBox Content="Fatal" IsChecked="{Binding ShowFatal}" Foreground="{StaticResource FatalBrush}"/>
-                        </StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            
+                            <CheckBox Grid.Row="0" Grid.Column="0" Content="Verbose" IsChecked="{Binding ShowVerbose}" Foreground="{StaticResource VerboseBrush}" Margin="0,2"/>
+                            <CheckBox Grid.Row="0" Grid.Column="1" Content="Debug" IsChecked="{Binding ShowDebug}" Foreground="{StaticResource DebugBrush}" Margin="0,2"/>
+                            <CheckBox Grid.Row="1" Grid.Column="0" Content="Info" IsChecked="{Binding ShowInfo}" Foreground="{StaticResource InfoBrush}" Margin="0,2"/>
+                            <CheckBox Grid.Row="1" Grid.Column="1" Content="Warning" IsChecked="{Binding ShowWarn}" Foreground="{StaticResource WarnBrush}" Margin="0,2"/>
+                            <CheckBox Grid.Row="2" Grid.Column="0" Content="Error" IsChecked="{Binding ShowError}" Foreground="{StaticResource ErrorBrush}" Margin="0,2"/>
+                            <CheckBox Grid.Row="2" Grid.Column="1" Content="Fatal" IsChecked="{Binding ShowFatal}" Foreground="{StaticResource FatalBrush}" Margin="0,2"/>
+                        </Grid>
 
                         <Separator Margin="0,16"/>
 
@@ -207,27 +227,158 @@
 
                         <Separator Margin="0,16"/>
 
-                        <!-- Statistics -->
-                        <TextBlock Text="Statistics" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                        <!-- Quick Filters -->
+                        <TextBlock Text="Quick Filters" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                         <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Total Logs:" FontSize="12"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TotalLogCount}" FontSize="12"/>
+                            <!-- Add Filter Controls -->
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" x:Name="NewQuickFilterText" 
+                                         Margin="0,0,4,0" Height="24"
+                                         ToolTip="Enter filter text and press Enter or click + to add"
+                                         KeyDown="NewQuickFilterText_KeyDown"/>
+                                <Button Grid.Column="1" 
+                                        Width="24" Height="24"
+                                        Click="AddQuickFilter_Click"
+                                        Background="#4CAF50" Foreground="White"
+                                        ToolTip="Add Quick Filter"
+                                        BorderThickness="0">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="2">
+                                                <Path Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M17,13H13V17H11V13H7V11H11V7H13V11H17V13Z"
+                                                      Fill="White"
+                                                      Stretch="Uniform"
+                                                      Width="16" Height="16"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#66BB6A"/>
+                                                </Trigger>
+                                                <Trigger Property="IsPressed" Value="True">
+                                                    <Setter Property="Background" Value="#388E3C"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
                             
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Filtered Logs:" FontSize="12"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding FilteredLogCount}" FontSize="12"/>
-                            
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Status:" FontSize="12"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ConnectionStatus}" FontSize="12"/>
+                            <!-- Quick Filter List -->
+                            <ListBox Grid.Row="1" x:Name="QuickFiltersList"
+                                     ItemsSource="{Binding QuickFilters}"
+                                     MaxHeight="120"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     SelectionMode="Single">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel LastChildFill="True">
+                                            <Button DockPanel.Dock="Right"
+                                                    Width="18" Height="18"
+                                                    Background="#FFEBEE"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#F44336"
+                                                    Click="RemoveQuickFilter_Click"
+                                                    CommandParameter="{Binding}"
+                                                    ToolTip="Remove Filter"
+                                                    Margin="4,2,2,2"
+                                                    Cursor="Hand"
+                                                    VerticalAlignment="Center">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="2">
+                                                            <Path Data="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"
+                                                                  Fill="#F44336"
+                                                                  Stretch="Uniform"
+                                                                  Width="12" Height="12"
+                                                                  HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#FFCDD2"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsPressed" Value="True">
+                                                                <Setter Property="Background" Value="#EF5350"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                            <TextBlock Text="{Binding Text}" 
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Text}"
+                                                       Margin="4,2,4,2">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="Black"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                                <Setter Property="FontWeight" Value="Medium"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="4,3"/>
+                                        <Setter Property="Margin" Value="1"/>
+                                        <Setter Property="Cursor" Value="Hand"/>
+                                        <Setter Property="BorderThickness" Value="1"/>
+                                        <Setter Property="BorderBrush" Value="Transparent"/>
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <EventSetter Event="MouseLeftButtonUp" Handler="QuickFilterItem_Click"/>
+                                        <Style.Triggers>
+                                            <!-- 应用状态 - 绿色背景 -->
+                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                <Setter Property="Background" Value="#4CAF50"/>
+                                                <Setter Property="BorderBrush" Value="#388E3C"/>
+                                                <Setter Property="BorderThickness" Value="2"/>
+                                            </DataTrigger>
+                                            <!-- 鼠标悬停但未应用 -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsActive}" Value="False"/>
+                                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Background" Value="#F5F5F5"/>
+                                                <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                                            </MultiDataTrigger>
+                                            <!-- 应用状态且鼠标悬停 - 更深的绿色 -->
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsActive}" Value="True"/>
+                                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Background" Value="#388E3C"/>
+                                                <Setter Property="BorderBrush" Value="#2E7D30"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
@@ -369,12 +520,28 @@
                                                                 Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <TextBlock Text="{Binding Message}" 
+                                                    <TextBlock Text="{Binding DisplayMessage}" 
                                                                Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
                                                                TextTrimming="CharacterEllipsis"
                                                                ToolTip="{Binding Message}"
                                                                VerticalAlignment="Center"
-                                                               Padding="2,1"/>
+                                                               Padding="2,1"
+                                                               MouseLeftButtonDown="LogMessage_MouseLeftButtonDown"
+                                                               Tag="{Binding}"
+                                                               Cursor="Hand">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsMultiLine}" Value="True">
+                                                                        <Setter Property="Background" Value="#F8F9FA"/>
+                                                                    </DataTrigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="#E8F4FD"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -491,10 +658,26 @@
                                                     Visibility="{Binding DataContext.ShowMessageColumn, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Message}" 
+                                        <TextBlock Text="{Binding DisplayMessage}" 
                                                    Foreground="{Binding Level, Converter={StaticResource LogLevelToTextBrushConverter}}"
                                                    TextWrapping="{Binding DataContext.WordWrap, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToTextWrappingConverter}}"
-                                                   Padding="4,2"/>
+                                                   Padding="4,2"
+                                                   MouseLeftButtonDown="LogMessage_MouseLeftButtonDown"
+                                                   Tag="{Binding}"
+                                                   Cursor="Hand">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsMultiLine}" Value="True">
+                                                            <Setter Property="Background" Value="#F8F9FA"/>
+                                                        </DataTrigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#E8F4FD"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -564,6 +747,19 @@
         <Border Grid.Row="3" Background="#37474F" Padding="8">
             <DockPanel>
                 <TextBlock Text="{Binding StatusMessage}" DockPanel.Dock="Left" Foreground="White"/>
+                
+                <!-- Statistics in Status Bar -->
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" Margin="0,0,16,0">
+                    <TextBlock Text="Total:" Foreground="White" FontSize="11" Margin="0,0,4,0"/>
+                    <TextBlock Text="{Binding TotalLogCount}" Foreground="White" FontSize="11" FontWeight="Bold" Margin="0,0,16,0"/>
+                    
+                    <TextBlock Text="Filtered:" Foreground="White" FontSize="11" Margin="0,0,4,0"/>
+                    <TextBlock Text="{Binding FilteredLogCount}" Foreground="White" FontSize="11" FontWeight="Bold" Margin="0,0,16,0"/>
+                    
+                    <TextBlock Text="Status:" Foreground="White" FontSize="11" Margin="0,0,4,0"/>
+                    <TextBlock Text="{Binding ConnectionStatus}" Foreground="White" FontSize="11" FontWeight="Bold" Margin="0,0,16,0"/>
+                </StackPanel>
+                
                 <ProgressBar IsIndeterminate="{Binding IsLoading}" 
                              Width="100" Height="4" 
                              DockPanel.Dock="Right"
