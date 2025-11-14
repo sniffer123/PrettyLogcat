@@ -6,7 +6,8 @@
         Title="PrettyLogcat - Android Logcat Viewer" 
         Height="800" Width="1200"
         MinHeight="600" MinWidth="800"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Resources/app.ico">
 
     <Window.Resources>
         <converters:InverseBooleanConverter x:Key="InverseBooleanConverter"/>
