@@ -169,6 +169,50 @@ namespace PrettyLogcat.Services
         // PID包名选择项
         public IEnumerable<PidPackageInfo> AvailablePidPackages => GetAvailablePidPackages();
 
+        /// <summary>
+        /// Matches text against a filter expression with AND/OR logic.
+        /// Default: spaces act as AND ("word1 word2" means both must be present)
+        /// Explicit AND: "word1 AND word2", "word1 and word2", "word1 & word2", "word1 + word2" (both must be present)
+        /// Explicit OR: "word1 OR word2", "word1 or word2", "word1 || word2" (at least one must be present)
+        /// All operators are case-insensitive (AND/and/And, OR/or/Or all work)
+        /// </summary>
+        private bool MatchesFilter(string text, string filterExpression)
+        {
+            if (string.IsNullOrWhiteSpace(filterExpression))
+                return true;
+
+            // Split by OR operators (||, OR, or) - case insensitive
+            var orGroups = System.Text.RegularExpressions.Regex.Split(
+                filterExpression,
+                @"\s*\|\|\s*|\s+(?:or)\s+",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase
+            );
+
+            // Check if any OR group matches
+            foreach (var orGroup in orGroups)
+            {
+                if (string.IsNullOrWhiteSpace(orGroup))
+                    continue;
+
+                // Split by AND operators (+, &, AND, and, or space) - case insensitive
+                var andWords = System.Text.RegularExpressions.Regex.Split(
+                    orGroup,
+                    @"\s*\+\s*|\s+(?:&|and)\s+|\s+",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                );
+
+                // Check if all AND words are present
+                var allAndWordsMatch = andWords
+                    .Where(word => !string.IsNullOrWhiteSpace(word))
+                    .All(word => text.Contains(word.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (allAndWordsMatch)
+                    return true;
+            }
+
+            return false;
+        }
+
         public bool ShouldIncludeLogEntry(LogEntry logEntry)
         {
             // Check log level filters
@@ -186,17 +230,17 @@ namespace PrettyLogcat.Services
             if (!levelIncluded)
                 return false;
 
-            // Check tag filter
+            // Check tag filter with AND/OR logic
             if (!string.IsNullOrWhiteSpace(TagFilter))
             {
-                if (!logEntry.Tag.Contains(TagFilter, StringComparison.OrdinalIgnoreCase))
+                if (!MatchesFilter(logEntry.Tag, TagFilter))
                     return false;
             }
 
-            // Check message filter
+            // Check message filter with AND/OR logic
             if (!string.IsNullOrWhiteSpace(MessageFilter))
             {
-                if (!logEntry.Message.Contains(MessageFilter, StringComparison.OrdinalIgnoreCase))
+                if (!MatchesFilter(logEntry.Message, MessageFilter))
                     return false;
             }
 
@@ -211,7 +255,8 @@ namespace PrettyLogcat.Services
                 else
                 {
                     // If PID filter is not a valid number, treat it as text search in PID string
-                    if (!logEntry.Pid.ToString().Contains(PidFilter, StringComparison.OrdinalIgnoreCase))
+                    var pidString = logEntry.Pid.ToString();
+                    if (!MatchesFilter(pidString, PidFilter))
                         return false;
                 }
             }
