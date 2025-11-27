@@ -52,6 +52,47 @@ dotnet run --project PrettyLogcat
 - **Message Filter**: Enter text to filter by log message content
 - **PID Filter**: Enter a process ID to filter by specific process
 
+### Complex Filtering
+
+PrettyLogcat supports advanced filtering with AND/OR logic operators for Tag, Message, and PID filters.
+
+#### Filter Operators
+
+**AND Operators** (all terms must be present):
+- **Space** (default): `word1 word2`
+- **AND**: `word1 AND word2` or `word1 and word2`
+- **&**: `word1 & word2`
+- **+**: `word1 + word2`
+
+**OR Operators** (at least one term must be present):
+- **||**: `word1 || word2`
+- **OR**: `word1 OR word2` or `word1 or word2`
+
+#### Examples
+
+**Simple Filtering:**
+- `MainActivity` - Shows logs containing "MainActivity"
+- `error network` - Shows logs containing both "error" AND "network"
+
+**Explicit AND:**
+- `error AND network` - Shows logs containing both "error" AND "network"
+- `wifi + bluetooth` - Shows logs containing both "wifi" AND "bluetooth"
+- `error & timeout` - Shows logs containing both "error" AND "timeout"
+
+**OR Filtering:**
+- `error || warning` - Shows logs containing "error" OR "warning"
+- `wifi OR bluetooth` - Shows logs containing "wifi" OR "bluetooth"
+
+**Complex Combinations:**
+- `error network || timeout` - Shows logs with ("error" AND "network") OR "timeout"
+- `MainActivity + onCreate || onResume` - Shows logs with ("MainActivity" AND "onCreate") OR "onResume"
+- `wifi & connected || bluetooth & paired` - Shows logs with ("wifi" AND "connected") OR ("bluetooth" AND "paired")
+
+**Notes:**
+- All operators are case-insensitive (AND/and, OR/or)
+- Whitespace around operators is optional (`word1||word2` works same as `word1 || word2`)
+- Filters apply to Tag, Message, and PID fields independently
+
 ### File Operations
 
 - **Save Logs**: Click "Save Logs" to export current filtered logs to a file
